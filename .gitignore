@@ -1,17 +1,34 @@
+# Python
 .venv/
-venv/
-env/
-
 __pycache__/
-*.py[cod]
-*$py.class
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
+*.pyc
+*.pyo
+*.pyd
 
-runs/
-reports/
-checkpoints/
+# Env / secrets
+.env
+*.env
+.env.*
+WANDB_API_KEY*
+OPENROUTER_API_KEY*
+
+# W&B local files
+wandb/
+
+# Training outputs
+runs/*
+!runs/.gitkeep
+
+checkpoints/*
+!checkpoints/.gitkeep
+
+reports/*
+!reports/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
 *.log
