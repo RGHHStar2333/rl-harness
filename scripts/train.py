@@ -2,18 +2,27 @@ import argparse
 import json
 import os
 import time
-
-import gymnasium as gym
 import yaml
+import gymnasium as gym
+
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.callbacks import BaseCallback, CallbackList
+from stable_baselines3.common.monitor import Monitor
+
+try:
+    import wandb
+    from wandb.integration.sb3 import WandbCallback
+except ImportError:
+    wandb = None
+    WandbCallback = None
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def load_yaml(path):
-    with open(os.path.join(ROOT, path), "r", encoding="utf-8") as f:
+    full_path = path if os.path.isabs(path) else os.path.join(ROOT, path)
+    with open(full_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -36,9 +45,7 @@ class JsonlLoggingCallback(BaseCallback):
 
         reward_mean = None
         if len(self.model.ep_info_buffer) > 0:
-            reward_mean = sum(ep["r"] for ep in self.model.ep_info_buffer) / len(
-                self.model.ep_info_buffer
-            )
+            reward_mean = sum(ep["r"] for ep in self.model.ep_info_buffer) / len(self.model.ep_info_buffer)
 
         if step % self.log_every == 0:
             record = {
@@ -71,6 +78,23 @@ class JsonlLoggingCallback(BaseCallback):
         return True
 
 
+def build_wandb_config(pipeline, hyper, reward_cfg):
+    return {
+        "project_name": pipeline["project"]["name"],
+        "task": pipeline["project"]["task"],
+        "run_id": pipeline["project"]["run_id"],
+        "env_id": pipeline["environment"]["env_id"],
+        "algorithm": pipeline["environment"]["algorithm"],
+        "total_timesteps": pipeline["environment"]["total_timesteps"],
+        "device": pipeline["environment"]["device"],
+        "ppo": hyper.get("ppo", {}),
+        "env_kwargs": reward_cfg.get("env_kwargs", {}),
+        "reward_weights": reward_cfg.get("reward_weights", {}),
+        "checkpoint": pipeline.get("checkpoint", {}),
+        "feedback_flywheel": pipeline.get("feedback_flywheel", {}),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
@@ -82,13 +106,44 @@ def main():
 
     run_dir = os.path.join(ROOT, pipeline["paths"]["run_dir"])
     checkpoint_dir = os.path.join(ROOT, pipeline["paths"]["checkpoint_dir"])
+    tensorboard_dir = os.path.join(run_dir, "tensorboard")
+
+    os.makedirs(run_dir, exist_ok=True)
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    os.makedirs(tensorboard_dir, exist_ok=True)
 
     env_id = pipeline["environment"]["env_id"]
     total_timesteps = pipeline["environment"]["total_timesteps"]
     device = pipeline["environment"]["device"]
 
+    tracking_cfg = pipeline.get("tracking", {})
+    wandb_enabled = bool(tracking_cfg.get("wandb_enabled", False))
+
+    wandb_run = None
+
+    if wandb_enabled:
+        if wandb is None or WandbCallback is None:
+            raise RuntimeError("你开启了 wandb_enabled，但没有安装 wandb。请运行：pip install wandb")
+
+        wandb_kwargs = {
+            "project": tracking_cfg.get("wandb_project", "rl-harness"),
+            "name": pipeline["project"]["run_id"],
+            "config": build_wandb_config(pipeline, hyper, reward_cfg),
+            "sync_tensorboard": bool(tracking_cfg.get("sync_tensorboard", True)),
+            "save_code": bool(tracking_cfg.get("save_code", True)),
+        }
+
+        entity = tracking_cfg.get("wandb_entity")
+        if entity:
+            wandb_kwargs["entity"] = entity
+
+        wandb_run = wandb.init(**wandb_kwargs)
+
+        print(f"✅ wandb 已启动: project={wandb_kwargs['project']}, run={pipeline['project']['run_id']}")
+
     env_kwargs = reward_cfg.get("env_kwargs", {})
     env = gym.make(env_id, **env_kwargs)
+    env = Monitor(env)
 
     ppo_cfg = hyper["ppo"]
 
@@ -105,21 +160,43 @@ def main():
         ent_coef=ppo_cfg["ent_coef"],
         verbose=1,
         device=device,
+        tensorboard_log=tensorboard_dir,
     )
 
-    callback = JsonlLoggingCallback(
-        run_dir=run_dir,
-        checkpoint_dir=checkpoint_dir,
-        save_interval=pipeline["checkpoint"]["save_interval"],
-        log_every=1000,
-    )
+    callbacks = [
+        JsonlLoggingCallback(
+            run_dir=run_dir,
+            checkpoint_dir=checkpoint_dir,
+            save_interval=pipeline["checkpoint"]["save_interval"],
+            log_every=1000,
+        )
+    ]
 
-    model.learn(total_timesteps=total_timesteps, callback=callback)
+    if wandb_enabled:
+        callbacks.append(
+            WandbCallback(
+                model_save_path=os.path.join(checkpoint_dir, "wandb_models"),
+                model_save_freq=pipeline["checkpoint"]["save_interval"],
+                gradient_save_freq=0,
+                verbose=2,
+            )
+        )
+
+    callback = CallbackList(callbacks)
+
+    model.learn(
+        total_timesteps=total_timesteps,
+        callback=callback,
+        tb_log_name=pipeline["project"]["run_id"],
+    )
 
     final_path = os.path.join(checkpoint_dir, "final_model.zip")
     model.save(final_path)
 
     env.close()
+
+    if wandb_run is not None:
+        wandb_run.finish()
 
     print(f"✅ training finished: {final_path}")
 

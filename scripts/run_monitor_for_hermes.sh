@@ -3,4 +3,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-.venv/bin/python scripts/monitor_hermes.py --config configs/pipeline.yaml "$@"
+if [ -f ".venv/bin/activate" ]; then
+  source .venv/bin/activate
+  python scripts/monitor_hermes.py --config configs/pipeline.yaml "$@"
+else
+  python3 scripts/monitor_hermes.py --config configs/pipeline.yaml "$@"
+fi

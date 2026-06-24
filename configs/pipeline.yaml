@@ -29,6 +29,13 @@ feedback_flywheel:
   l2_confirm_timeout_minutes: 60
   notification_mode: hermes_feishu
 
+tracking:
+  wandb_enabled: true
+  wandb_project: rl-harness-mujoco
+  wandb_entity: null
+  sync_tensorboard: true
+  save_code: true
+
 mechanical_enforcement:
   schema_check: true
   dependency_direction_check: true
