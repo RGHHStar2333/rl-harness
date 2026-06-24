@@ -8,3 +8,7 @@ if [ -f ".venv/bin/activate" ]; then
 fi
 
 python3 scripts/monitor_hermes.py --config configs/pipeline.yaml "$@"
+
+if [ "$#" -eq 0 ] || [ "${1:-}" = "--debug" ]; then
+  python3 scripts/l2_check.py --config configs/pipeline.yaml "$@"
+fi

@@ -2,13 +2,11 @@ project:
   name: rl_harness_mujoco
   task: half_cheetah
   run_id: halfcheetah_mvp_001
-
 environment:
   env_id: HalfCheetah-v5
   algorithm: PPO
   total_timesteps: 100000
   device: cpu
-
 paths:
   hyper_config: configs/tasks/halfcheetah/hyper.yaml
   reward_config: configs/tasks/halfcheetah/reward.yaml
@@ -17,25 +15,22 @@ paths:
   run_dir: runs/halfcheetah_mvp_001
   checkpoint_dir: checkpoints/halfcheetah_mvp_001
   report_dir: reports
-
 checkpoint:
   save_interval: 20000
   keep_recent: 5
   keep_best: 3
-
 feedback_flywheel:
   enabled: true
-  l1_max_change_ratio: 0.10
+  l1_max_change_ratio: 0.1
   l2_confirm_timeout_minutes: 60
   notification_mode: hermes_feishu
-
+  l2_max_change_ratio: 0.3
 tracking:
   wandb_enabled: true
   wandb_project: rl-harness-mujoco
   wandb_entity: null
   sync_tensorboard: true
   save_code: true
-
 mechanical_enforcement:
   schema_check: true
   dependency_direction_check: true
