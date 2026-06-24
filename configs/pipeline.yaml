@@ -1,0 +1,36 @@
+project:
+  name: rl_harness_cartpole
+  task: cartpole
+  run_id: cartpole_mvp_001
+
+environment:
+  env_id: CartPole-v1
+  algorithm: PPO
+  total_timesteps: 20000
+  device: cpu
+
+paths:
+  hyper_config: configs/tasks/cartpole/hyper.yaml
+  reward_config: configs/tasks/cartpole/reward.yaml
+  detection_rules: configs/detection_rules.yaml
+  reward_skills: configs/reward_skills.yaml
+  run_dir: runs/cartpole_mvp_001
+  checkpoint_dir: checkpoints/cartpole_mvp_001
+  report_dir: reports
+
+checkpoint:
+  save_interval: 5000
+  keep_recent: 5
+  keep_best: 3
+
+feedback_flywheel:
+  enabled: true
+  l1_max_change_ratio: 0.10
+  l2_confirm_timeout_minutes: 60
+  notification_mode: console
+
+mechanical_enforcement:
+  schema_check: true
+  dependency_direction_check: true
+  checkpoint_interval_check: true
+  metric_naming_check: true

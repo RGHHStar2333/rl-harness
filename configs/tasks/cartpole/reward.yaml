@@ -1,0 +1,8 @@
+reward_weights:
+  task_reward: 1.0
+  stability_reward: 0.0
+  style_reward: 0.0
+
+constraints:
+  total_weight_min: 0.1
+  total_weight_max: 10.0

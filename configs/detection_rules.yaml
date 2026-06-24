@@ -1,0 +1,37 @@
+rules:
+  - id: reward_plateau
+    description: Episode reward has not improved enough.
+    metric: train/episode_reward_mean
+    condition:
+      type: trend
+      window: 5
+      min_delta: 1.0
+    response_level: L2
+    suggestions:
+      - target: ppo.learning_rate
+        operation: multiply
+        value: 0.8
+        reason: Lower learning rate to stabilize learning.
+
+  - id: reward_crash
+    description: Episode reward dropped badly.
+    metric: train/episode_reward_mean
+    condition:
+      type: threshold
+      operator: "<"
+      value: 20
+    response_level: L3
+    emergency_action: pause_training
+
+  - id: small_lr_adjustment
+    description: Mild instability detected.
+    metric: train/policy_loss
+    condition:
+      type: volatility
+      window: 5
+      max_std: 0.5
+    response_level: L1
+    auto_adjust:
+      target: ppo.learning_rate
+      operation: multiply
+      value: 0.95

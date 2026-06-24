@@ -1,0 +1,24 @@
+skills:
+  - id: slow_learning
+    symptom: Reward grows slowly for a long time.
+    indicators:
+      - train/episode_reward_mean plateau
+    diagnosis: Learning may be too aggressive or unstable.
+    adjustment:
+      target: ppo.learning_rate
+      operation: multiply
+      value: 0.8
+    expected_effect: More stable learning.
+    historical_success_rate: 0.60
+
+  - id: unstable_policy
+    symptom: Reward oscillates heavily.
+    indicators:
+      - train/policy_loss high_volatility
+    diagnosis: Policy updates may be too large.
+    adjustment:
+      target: ppo.learning_rate
+      operation: multiply
+      value: 0.9
+    expected_effect: Reduce oscillation.
+    historical_success_rate: 0.55
