@@ -27,7 +27,7 @@ echo "task: $TASK"
 echo "num_envs: $NUM_ENVS"
 echo "log: $LOG_PATH"
 
-nohup bash -lc "cd '$PROJECT_DIR' && export WANDB_PROJECT='$WANDB_PROJECT_NAME' && export WANDB_NAME='$WANDB_RUN_NAME' && uv run train '$TASK' --num_envs '$NUM_ENVS'" > "$LOG_PATH" 2>&1 &
+nohup bash -lc "cd '$PROJECT_DIR' && export WANDB_PROJECT='$WANDB_PROJECT_NAME' && export WANDB_NAME='$WANDB_RUN_NAME' && uv run train '$TASK' --env.scene.num-envs '$NUM_ENVS'" > "$LOG_PATH" 2>&1 &
 
 PID=$!
 
@@ -38,7 +38,7 @@ cat > runs/active_training.json <<JSON
   "run_id": "$RUN_ID",
   "pid": $PID,
   "project_dir": "$PROJECT_DIR",
-  "command": "uv run train $TASK --num_envs $NUM_ENVS",
+  "command": "uv run train $TASK --env.scene.num-envs $NUM_ENVS",
   "log": "$LOG_PATH"
 }
 JSON
