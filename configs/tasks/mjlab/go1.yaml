@@ -1,0 +1,7 @@
+mjlab:
+  run_id: mjlab_go1_001
+  project_dir: /home/leju/mjlab/src
+  task: Mjlab-Velocity-Flat-Unitree-Go1
+  num_envs: 512
+  wandb_project: rl-harness-mjlab
+  wandb_name: mjlab_go1_001
