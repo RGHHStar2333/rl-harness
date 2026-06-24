@@ -19,3 +19,5 @@ case "${1:-}" in
     fi
     ;;
 esac
+
+python3 scripts/git_auto_commit.py --level AUTO --reason "post monitor harness update" || true
