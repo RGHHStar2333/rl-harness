@@ -9,6 +9,7 @@ This repository is the system of record for RL training.
 - configs/tasks/halfcheetah/reward.yaml: reward and MuJoCo environment config
 - configs/detection_rules.yaml: feedback flywheel rules
 - configs/reward_skills.yaml: adjustment skill library
+- scripts/monitor_hermes.py: Hermes/Feishu notification monitor
 
 ## Commands
 
@@ -27,7 +28,7 @@ python scripts/train.py --config configs/pipeline.yaml
 Run monitor:
 
 ```bash
-python scripts/monitor.py --config configs/pipeline.yaml
+bash scripts/run_monitor_for_hermes.sh
 ```
 
 Run entropy scan:

@@ -27,7 +27,7 @@ feedback_flywheel:
   enabled: true
   l1_max_change_ratio: 0.10
   l2_confirm_timeout_minutes: 60
-  notification_mode: console
+  notification_mode: hermes_feishu
 
 mechanical_enforcement:
   schema_check: true
