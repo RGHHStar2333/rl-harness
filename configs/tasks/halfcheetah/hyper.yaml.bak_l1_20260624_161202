@@ -1,6 +1,6 @@
 algorithm: PPO
 ppo:
-  learning_rate: 0.00020577
+  learning_rate: 0.0002166
   n_steps: 2048
   batch_size: 64
   n_epochs: 10
