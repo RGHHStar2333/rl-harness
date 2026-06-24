@@ -73,12 +73,12 @@ class JsonlLoggingCallback(BaseCallback):
             with open(self.ckpt_index_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(ckpt_record, ensure_ascii=False) + "\n")
 
-            print(f"✅ checkpoint saved: {ckpt_path}", flush=True)
+            print(f"✅ checkpoint saved: {ckpt_path}")
 
         return True
 
 
-def build_wandb_config(pipeline, hyper, reward_cfg, resume_checkpoint=None):
+def build_wandb_config(pipeline, hyper, reward_cfg):
     return {
         "project_name": pipeline["project"]["name"],
         "task": pipeline["project"]["task"],
@@ -87,7 +87,6 @@ def build_wandb_config(pipeline, hyper, reward_cfg, resume_checkpoint=None):
         "algorithm": pipeline["environment"]["algorithm"],
         "total_timesteps": pipeline["environment"]["total_timesteps"],
         "device": pipeline["environment"]["device"],
-        "resume_checkpoint": resume_checkpoint,
         "ppo": hyper.get("ppo", {}),
         "env_kwargs": reward_cfg.get("env_kwargs", {}),
         "reward_weights": reward_cfg.get("reward_weights", {}),
@@ -96,23 +95,9 @@ def build_wandb_config(pipeline, hyper, reward_cfg, resume_checkpoint=None):
     }
 
 
-def apply_current_learning_rate(model, new_lr):
-    new_lr = float(new_lr)
-
-    model.learning_rate = new_lr
-    model.lr_schedule = lambda _: new_lr
-
-    if hasattr(model, "policy") and hasattr(model.policy, "optimizer"):
-        for group in model.policy.optimizer.param_groups:
-            group["lr"] = new_lr
-
-    print(f"✅ 当前配置 learning_rate 已应用到模型: {new_lr}", flush=True)
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
-    parser.add_argument("--resume-checkpoint", default=None)
     args = parser.parse_args()
 
     pipeline = load_yaml(args.config)
@@ -128,11 +113,8 @@ def main():
     os.makedirs(tensorboard_dir, exist_ok=True)
 
     env_id = pipeline["environment"]["env_id"]
-    total_timesteps = int(pipeline["environment"]["total_timesteps"])
+    total_timesteps = pipeline["environment"]["total_timesteps"]
     device = pipeline["environment"]["device"]
-
-    ppo_cfg = hyper["ppo"]
-    current_lr = float(ppo_cfg["learning_rate"])
 
     tracking_cfg = pipeline.get("tracking", {})
     wandb_enabled = bool(tracking_cfg.get("wandb_enabled", False))
@@ -146,7 +128,7 @@ def main():
         wandb_kwargs = {
             "project": tracking_cfg.get("wandb_project", "rl-harness"),
             "name": pipeline["project"]["run_id"],
-            "config": build_wandb_config(pipeline, hyper, reward_cfg, args.resume_checkpoint),
+            "config": build_wandb_config(pipeline, hyper, reward_cfg),
             "sync_tensorboard": bool(tracking_cfg.get("sync_tensorboard", True)),
             "save_code": bool(tracking_cfg.get("save_code", True)),
         }
@@ -156,53 +138,30 @@ def main():
             wandb_kwargs["entity"] = entity
 
         wandb_run = wandb.init(**wandb_kwargs)
-        print(f"✅ wandb 已启动: project={wandb_kwargs['project']}, run={pipeline['project']['run_id']}", flush=True)
+
+        print(f"✅ wandb 已启动: project={wandb_kwargs['project']}, run={pipeline['project']['run_id']}")
 
     env_kwargs = reward_cfg.get("env_kwargs", {})
     env = gym.make(env_id, **env_kwargs)
     env = Monitor(env)
 
-    if args.resume_checkpoint:
-        ckpt = args.resume_checkpoint
-        if not os.path.isabs(ckpt):
-            ckpt = os.path.join(ROOT, ckpt)
+    ppo_cfg = hyper["ppo"]
 
-        if not os.path.exists(ckpt):
-            raise FileNotFoundError(f"找不到 resume checkpoint: {ckpt}")
-
-        print(f"🔁 从 checkpoint 恢复训练: {ckpt}", flush=True)
-
-        model = PPO.load(
-            ckpt,
-            env=env,
-            device=device,
-            tensorboard_log=tensorboard_dir,
-        )
-
-        apply_current_learning_rate(model, current_lr)
-
-        reset_num_timesteps = False
-
-    else:
-        print("🚀 从头启动训练。", flush=True)
-
-        model = PPO(
-            "MlpPolicy",
-            env,
-            learning_rate=current_lr,
-            n_steps=ppo_cfg["n_steps"],
-            batch_size=ppo_cfg["batch_size"],
-            n_epochs=ppo_cfg["n_epochs"],
-            gamma=ppo_cfg["gamma"],
-            gae_lambda=ppo_cfg["gae_lambda"],
-            clip_range=ppo_cfg["clip_range"],
-            ent_coef=ppo_cfg["ent_coef"],
-            verbose=1,
-            device=device,
-            tensorboard_log=tensorboard_dir,
-        )
-
-        reset_num_timesteps = True
+    model = PPO(
+        "MlpPolicy",
+        env,
+        learning_rate=ppo_cfg["learning_rate"],
+        n_steps=ppo_cfg["n_steps"],
+        batch_size=ppo_cfg["batch_size"],
+        n_epochs=ppo_cfg["n_epochs"],
+        gamma=ppo_cfg["gamma"],
+        gae_lambda=ppo_cfg["gae_lambda"],
+        clip_range=ppo_cfg["clip_range"],
+        ent_coef=ppo_cfg["ent_coef"],
+        verbose=1,
+        device=device,
+        tensorboard_log=tensorboard_dir,
+    )
 
     callbacks = [
         JsonlLoggingCallback(
@@ -229,7 +188,6 @@ def main():
         total_timesteps=total_timesteps,
         callback=callback,
         tb_log_name=pipeline["project"]["run_id"],
-        reset_num_timesteps=reset_num_timesteps,
     )
 
     final_path = os.path.join(checkpoint_dir, "final_model.zip")
@@ -240,7 +198,7 @@ def main():
     if wandb_run is not None:
         wandb_run.finish()
 
-    print(f"✅ training finished: {final_path}", flush=True)
+    print(f"✅ training finished: {final_path}")
 
 
 if __name__ == "__main__":
