@@ -12,6 +12,9 @@ runs/training_process.log
 runs/active_training.json
 runs/_*.json
 runs/l2_pending/
+runs/entropy_cron.log
+runs/cartpole_mvp_001/
+runs/halfcheetah_mvp_001/
 
 # Checkpoints / models
 checkpoints/
