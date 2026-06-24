@@ -1,34 +1,30 @@
 # Python
-.venv/
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
+.venv/
+venv/
 
-# Env / secrets
-.env
-*.env
-.env.*
-WANDB_API_KEY*
-OPENROUTER_API_KEY*
-
-# W&B local files
+# W&B
 wandb/
 
-# Training outputs
-runs/*
-!runs/.gitkeep
+# Training runtime files
+runs/training_process.log
+runs/active_training.json
+runs/_*.json
+runs/l2_pending/
 
-checkpoints/*
-!checkpoints/.gitkeep
+# Checkpoints / models
+checkpoints/
 
-reports/*
-!reports/.gitkeep
+# Videos
+reports/videos/
 
-# OS / editor
+# Backup files
+*.bak_l1_*
+*.bak_l2_*
+*.bak_resume_*
+
+# OS/editor
 .DS_Store
 .vscode/
 .idea/
-
-# Logs
-*.log
