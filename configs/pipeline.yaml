@@ -1,25 +1,25 @@
 project:
-  name: rl_harness_cartpole
-  task: cartpole
-  run_id: cartpole_mvp_001
+  name: rl_harness_mujoco
+  task: half_cheetah
+  run_id: halfcheetah_mvp_001
 
 environment:
-  env_id: CartPole-v1
+  env_id: HalfCheetah-v5
   algorithm: PPO
-  total_timesteps: 20000
+  total_timesteps: 100000
   device: cpu
 
 paths:
-  hyper_config: configs/tasks/cartpole/hyper.yaml
-  reward_config: configs/tasks/cartpole/reward.yaml
+  hyper_config: configs/tasks/halfcheetah/hyper.yaml
+  reward_config: configs/tasks/halfcheetah/reward.yaml
   detection_rules: configs/detection_rules.yaml
   reward_skills: configs/reward_skills.yaml
-  run_dir: runs/cartpole_mvp_001
-  checkpoint_dir: checkpoints/cartpole_mvp_001
+  run_dir: runs/halfcheetah_mvp_001
+  checkpoint_dir: checkpoints/halfcheetah_mvp_001
   report_dir: reports
 
 checkpoint:
-  save_interval: 5000
+  save_interval: 20000
   keep_recent: 5
   keep_best: 3
 

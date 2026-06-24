@@ -1,0 +1,13 @@
+env_kwargs:
+  forward_reward_weight: 1.0
+  ctrl_cost_weight: 0.1
+  reset_noise_scale: 0.1
+  exclude_current_positions_from_observation: true
+
+reward_weights:
+  forward_reward: 1.0
+  ctrl_cost: 0.1
+
+constraints:
+  total_weight_min: 0.1
+  total_weight_max: 10.0

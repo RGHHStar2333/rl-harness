@@ -5,8 +5,8 @@ This repository is the system of record for RL training.
 ## Entry points
 
 - configs/pipeline.yaml: top-level training and governance config
-- configs/tasks/cartpole/hyper.yaml: algorithm hyperparameters
-- configs/tasks/cartpole/reward.yaml: reward config
+- configs/tasks/halfcheetah/hyper.yaml: algorithm hyperparameters
+- configs/tasks/halfcheetah/reward.yaml: reward and MuJoCo environment config
 - configs/detection_rules.yaml: feedback flywheel rules
 - configs/reward_skills.yaml: adjustment skill library
 
