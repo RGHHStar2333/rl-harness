@@ -1,10 +1,25 @@
 rules:
-  - id: halfcheetah_reward_plateau
-    description: HalfCheetah reward has not improved enough.
+  - id: halfcheetah_mild_plateau_l1
+    description: HalfCheetah reward is improving too slowly, apply a small automatic learning-rate reduction.
     metric: train/episode_reward_mean
     condition:
       type: trend
       window: 5
+      min_delta: 10.0
+    response_level: L1
+    cooldown_steps: 20000
+    auto_adjust:
+      target: ppo.learning_rate
+      operation: multiply
+      value: 0.95
+      reason: Small automatic learning-rate reduction inside L1 max change ratio.
+
+  - id: halfcheetah_reward_plateau_l2
+    description: HalfCheetah reward has not improved enough for a longer period.
+    metric: train/episode_reward_mean
+    condition:
+      type: trend
+      window: 10
       min_delta: 50.0
     response_level: L2
     suggestions:
@@ -13,7 +28,7 @@ rules:
         value: 0.8
         reason: Lower learning rate if reward is unstable or stuck.
 
-  - id: halfcheetah_reward_crash
+  - id: halfcheetah_reward_crash_l3
     description: HalfCheetah reward dropped to a very bad value.
     metric: train/episode_reward_mean
     condition:
