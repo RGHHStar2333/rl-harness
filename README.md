@@ -53,7 +53,7 @@ bash scripts/restart_from_checkpoint.sh
 ## Directory Guide
 
 - `configs/`: versioned training, task, reward, and feedback rules.
-- `scripts/`: executable training, monitoring, approval, restart, and maintenance tools.
+- `scripts/`: compatibility wrappers plus training, feedback, ops, and MJLab implementation folders.
 - `runs/`: local runtime state, logs, adjustment history, and Hermes state.
 - `checkpoints/`: local model checkpoint artifacts.
 - `reports/`: generated reports such as entropy scan output.
