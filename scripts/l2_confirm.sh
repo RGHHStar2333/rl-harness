@@ -2,13 +2,4 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-
-if [ -f runs/adjustments.jsonl ]; then
-  before_lines=$(wc -l < runs/adjustments.jsonl)
-else
-  before_lines=0
-fi
-
-python3 scripts/l2_decide.py --decision confirm --token "$1"
-python3 scripts/auto_restart_if_needed.py --since-line "$before_lines" || true
-python3 scripts/git_auto_commit.py --level L2 --reason "confirmed L2 token $1 with restart" || true
+exec bash scripts/feedback/l2_confirm.sh "$@"
