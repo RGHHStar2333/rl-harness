@@ -15,6 +15,8 @@ runs/l2_pending/
 runs/entropy_cron.log
 runs/cartpole_mvp_001/
 runs/halfcheetah_mvp_001/
+runs/bridge.nohup.log
+runs/mjlab_go1_001/
 
 # Checkpoints / models
 checkpoints/
