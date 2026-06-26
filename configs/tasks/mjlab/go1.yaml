@@ -1,7 +1,8 @@
 mjlab:
-  run_id: mjlab_g1_128_test
+  run_id: mjlab_g1_128_10000
   project_dir: /home/leju/mjlab/src
   task: Mjlab-Velocity-Flat-Unitree-G1
   num_envs: 128
+  max_iterations: 10000
   wandb_project: rl-harness-mjlab
-  wandb_name: mjlab_g1_128_test
+  wandb_name: mjlab_g1_128_10000
