@@ -8,6 +8,15 @@ import sys
 import time
 import yaml
 
+from feedback_profile import (
+    active_training_gate,
+    append_jsonl as profile_append_jsonl,
+    apply_config_adjustment,
+    load_feedback_context,
+    load_yaml as profile_load_yaml,
+    resolve_path,
+)
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -122,75 +131,53 @@ def run_lint():
     return result.returncode == 0, result.stdout + result.stderr
 
 
-def apply_l1_auto_adjust(pipeline, rule, reason, latest, dry_run=False):
+def apply_l1_auto_adjust(context, rule, reason, latest, dry_run=False):
     auto_adjust = rule.get("auto_adjust")
 
     if not auto_adjust:
         return False, "L1 规则没有 auto_adjust 字段，无法自动修改。"
 
     target = auto_adjust["target"]
-
-    if not target.startswith("ppo."):
-        return False, f"安全限制：当前只允许自动修改 ppo.* 参数，不允许修改 {target}"
-
-    hyper_path = pipeline["paths"]["hyper_config"]
-    hyper_full_path = os.path.join(ROOT, hyper_path)
-    hyper_cfg = load_yaml(hyper_path)
-
-    old_value = nested_get(hyper_cfg, target)
-
-    if not isinstance(old_value, (int, float)):
-        return False, f"目标参数不是数字，无法自动调整: {target}={old_value}"
-
     operation = auto_adjust["operation"]
     raw_value = auto_adjust["value"]
 
-    proposed_value = apply_operation(old_value, operation, raw_value)
+    try:
+        change = apply_config_adjustment(
+            context=context,
+            target=target,
+            operation=operation,
+            raw_value=raw_value,
+            max_ratio=context.l1_max_change_ratio,
+            backup_label="l1",
+            dry_run=dry_run,
+        )
+    except Exception as exc:
+        return False, str(exc)
 
-    max_ratio = float(pipeline["feedback_flywheel"].get("l1_max_change_ratio", 0.10))
-    new_value = clamp_l1_change(old_value, proposed_value, max_ratio)
-
-    if target.endswith("learning_rate") and new_value <= 0:
-        return False, "learning_rate 调整后小于等于 0，已阻止。"
-
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    backup_path = f"{hyper_full_path}.bak_l1_{timestamp}"
+    old_value = change["old_value"]
+    new_value = change["new_value"]
+    backup_path = change["backup_path"]
 
     summary = []
-    summary.append("L1 自动修改 hyper.yaml")
+    summary.append("L1 自动修改可调配置")
     summary.append(f"- 规则：{rule['id']}")
+    summary.append(f"- Profile：{context.profile_name}")
     summary.append(f"- 参数：{target}")
     summary.append(f"- 旧值：{old_value}")
     summary.append(f"- 新值：{new_value}")
     summary.append(f"- 操作：{operation} {raw_value}")
-    summary.append(f"- L1 最大改动比例：{max_ratio}")
+    summary.append(f"- L1 最大改动比例：{context.l1_max_change_ratio}")
     summary.append(f"- 触发原因：{reason}")
 
     if dry_run:
         summary.append("- 模式：dry-run，没有真正写入文件")
         return True, "\n".join(summary)
 
-    shutil.copyfile(hyper_full_path, backup_path)
-
-    nested_set(hyper_cfg, target, new_value)
-    save_yaml(hyper_path, hyper_cfg)
-
-    lint_ok, lint_output = run_lint()
-
-    if not lint_ok:
-        shutil.copyfile(backup_path, hyper_full_path)
-        summary.append("")
-        summary.append("❌ 修改后 lint 失败，已经自动回滚。")
-        summary.append(f"备份文件：{backup_path}")
-        summary.append("lint 输出：")
-        summary.append(lint_output)
-        return False, "\n".join(summary)
-
-    adjustment_log = os.path.join(ROOT, "runs", "adjustments.jsonl")
-
-    append_jsonl(adjustment_log, {
+    profile_append_jsonl(context.adjustments_path, {
         "timestamp": time.time(),
-        "run_id": pipeline["project"]["run_id"],
+        "run_id": context.run_id,
+        "profile_name": context.profile_name,
+        "trainer_kind": context.trainer_kind,
         "level": "L1",
         "rule_id": rule["id"],
         "target": target,
@@ -201,15 +188,20 @@ def apply_l1_auto_adjust(pipeline, rule, reason, latest, dry_run=False):
         "reason": reason,
         "latest_step": latest.get("step") if latest else None,
         "latest_value": latest.get("value") if latest else None,
-        "hyper_path": hyper_path,
+        "config_path": context.adjust_config_path,
+        "hyper_path": context.adjust_config_path,
         "backup_path": backup_path,
+        "restart_required": context.restart_required,
     })
 
     summary.append("")
     summary.append("✅ 修改成功，lint 校验通过。")
     summary.append(f"备份文件：{backup_path}")
-    summary.append(f"调整日志：{adjustment_log}")
-    summary.append("说明：当前只修改 hyper.yaml，不自动重启训练。")
+    summary.append(f"调整日志：{resolve_path(context.adjustments_path)}")
+    if context.restart_required:
+        summary.append("说明：该修改需要重启训练或下次启动后生效。")
+    else:
+        summary.append("说明：当前只修改配置，不自动重启训练。")
 
     return True, "\n".join(summary)
 
@@ -283,8 +275,8 @@ def check_rule(rule, points):
     return False, "未触发", latest
 
 
-def format_alert(pipeline, rule, reason, latest, adjustment_summary=None):
-    project = pipeline["project"]
+def format_alert(context, rule, reason, latest, adjustment_summary=None):
+    project = context.project
     level = rule["response_level"]
 
     lines = []
@@ -292,7 +284,8 @@ def format_alert(pipeline, rule, reason, latest, adjustment_summary=None):
     lines.append("")
     lines.append(f"项目：{project['name']}")
     lines.append(f"任务：{project['task']}")
-    lines.append(f"Run ID：{project['run_id']}")
+    lines.append(f"Run ID：{context.run_id}")
+    lines.append(f"Profile：{context.profile_name}")
     lines.append(f"规则：{rule['id']}")
     lines.append(f"级别：{level}")
     lines.append(f"指标：{rule.get('metric')}")
@@ -306,7 +299,7 @@ def format_alert(pipeline, rule, reason, latest, adjustment_summary=None):
 
     if level == "L1":
         lines.append("处理方式：L1 自动级。")
-        lines.append("系统已尝试自动修改 hyper.yaml。")
+        lines.append("系统已尝试自动修改可调配置。")
         if adjustment_summary:
             lines.append("")
             lines.append(adjustment_summary)
@@ -334,19 +327,27 @@ def main():
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force-l1-test", action="store_true")
-    parser.add_argument("--state-path", default="runs/_hermes_notify_state.json")
+    parser.add_argument("--allow-inactive", action="store_true")
+    parser.add_argument("--state-path")
 
     args = parser.parse_args()
 
-    pipeline = load_yaml(args.config)
-    rules_cfg = load_yaml(pipeline["paths"]["detection_rules"])
+    context = load_feedback_context(args.config)
+    rules_cfg = profile_load_yaml(context.rules_path)
 
     if args.test:
         print("✅ Hermes / 飞书通知测试")
         print("")
         print("如果你在飞书里看到这条消息，说明 Hermes 可以转发训练监控脚本输出。")
-        print(f"项目：{pipeline['project']['name']}")
-        print(f"Run ID：{pipeline['project']['run_id']}")
+        print(f"项目：{context.project['name']}")
+        print(f"Run ID：{context.run_id}")
+        print(f"Profile：{context.profile_name}")
+        return
+
+    gate_ok, gate_reason = active_training_gate(context, allow_inactive=args.allow_inactive)
+    if not gate_ok:
+        if args.debug:
+            print(f"{context.profile_name}：{gate_reason}")
         return
 
     if args.force_l1_test:
@@ -361,19 +362,23 @@ def main():
         reason = "force-l1-test 手动测试触发"
 
         ok, adjustment_summary = apply_l1_auto_adjust(
-            pipeline=pipeline,
+            context=context,
             rule=rule,
             reason=reason,
             latest=latest,
             dry_run=args.dry_run,
         )
 
-        print(format_alert(pipeline, rule, reason, latest, adjustment_summary))
+        print(format_alert(context, rule, reason, latest, adjustment_summary))
         return
 
-    run_dir = os.path.join(ROOT, pipeline["paths"]["run_dir"])
-    log_path = os.path.join(run_dir, "train.jsonl")
-    state_path = os.path.join(ROOT, args.state_path)
+    log_path = resolve_path(context.metric_log_path)
+    default_state_path = (
+        "runs/_hermes_notify_state.json"
+        if context.trainer_kind == "sb3"
+        else f"{context.state_path_prefix}_notify_state.json"
+    )
+    state_path = resolve_path(args.state_path or default_state_path)
 
     state = load_state(state_path)
     rows = load_jsonl(log_path)
@@ -395,7 +400,7 @@ def main():
             continue
 
         latest_step = int(latest.get("step", 0)) if latest else 0
-        notify_key = f"{pipeline['project']['run_id']}::{rule['id']}::{latest_step}"
+        notify_key = f"{context.run_id}::{rule['id']}::{latest_step}"
 
         if notify_key in state["notified"]:
             continue
@@ -404,7 +409,7 @@ def main():
         adjustment_summary = None
 
         if level == "L1":
-            auto_key = f"{pipeline['project']['run_id']}::{rule['id']}"
+            auto_key = f"{context.run_id}::{rule['id']}"
             cooldown_steps = int(rule.get("cooldown_steps", 20000))
             last_auto = state["l1_auto"].get(auto_key)
 
@@ -416,7 +421,7 @@ def main():
                     continue
 
             ok, adjustment_summary = apply_l1_auto_adjust(
-                pipeline=pipeline,
+                context=context,
                 rule=rule,
                 reason=reason,
                 latest=latest,
@@ -430,7 +435,7 @@ def main():
                 "dry_run": args.dry_run,
             }
 
-        messages.append(format_alert(pipeline, rule, reason, latest, adjustment_summary))
+        messages.append(format_alert(context, rule, reason, latest, adjustment_summary))
 
         state["notified"][notify_key] = {
             "time": time.time(),

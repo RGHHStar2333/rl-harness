@@ -6,6 +6,14 @@ import statistics
 import time
 import yaml
 
+from feedback_profile import (
+    active_training_gate,
+    context_public_payload,
+    load_feedback_context,
+    load_yaml as profile_load_yaml,
+    resolve_path,
+)
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -95,19 +103,29 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--allow-inactive", action="store_true")
     args = parser.parse_args()
 
-    pipeline = load_yaml(args.config)
-    rules_cfg = load_yaml(pipeline["paths"]["detection_rules"])
+    context = load_feedback_context(args.config)
+    rules_cfg = profile_load_yaml(context.rules_path)
 
-    run_id = pipeline["project"]["run_id"]
-    run_dir = os.path.join(ROOT, pipeline["paths"]["run_dir"])
-    log_path = os.path.join(run_dir, "train.jsonl")
+    gate_ok, gate_reason = active_training_gate(context, allow_inactive=args.allow_inactive)
+    if not gate_ok:
+        if args.debug:
+            print(f"L2 {context.profile_name}：{gate_reason}")
+        return
 
-    pending_dir = os.path.join(ROOT, "runs", "l2_pending")
+    run_id = context.run_id
+    log_path = resolve_path(context.metric_log_path)
+
+    pending_dir = resolve_path(context.l2_pending_dir)
     os.makedirs(pending_dir, exist_ok=True)
 
-    state_path = os.path.join(ROOT, "runs", "_l2_proposal_state.json")
+    state_path = resolve_path(
+        "runs/_l2_proposal_state.json"
+        if context.trainer_kind == "sb3"
+        else f"{context.state_path_prefix}_l2_proposal_state.json"
+    )
     if os.path.exists(state_path):
         with open(state_path, "r", encoding="utf-8") as f:
             state = json.load(f)
@@ -146,13 +164,16 @@ def main():
             "status": "pending",
             "created_at": time.time(),
             "run_id": run_id,
-            "project": pipeline["project"],
+            "project": context.project,
             "rule": rule,
             "reason": reason,
             "latest": latest,
-            "hyper_config": pipeline["paths"]["hyper_config"],
-            "l2_max_change_ratio": pipeline["feedback_flywheel"].get("l2_max_change_ratio", 0.30),
+            "hyper_config": context.adjust_config_path,
+            "l2_max_change_ratio": context.l2_max_change_ratio,
+            "metric_log_path": context.metric_log_path,
+            "rules_path": context.rules_path,
         }
+        proposal.update(context_public_payload(context))
 
         proposal_path = os.path.join(pending_dir, f"{token}.json")
         with open(proposal_path, "w", encoding="utf-8") as f:
@@ -167,9 +188,10 @@ def main():
         lines = []
         lines.append("🟡 RL Harness L2 调整建议")
         lines.append("")
-        lines.append(f"项目：{pipeline['project']['name']}")
-        lines.append(f"任务：{pipeline['project']['task']}")
+        lines.append(f"项目：{context.project['name']}")
+        lines.append(f"任务：{context.project['task']}")
         lines.append(f"Run ID：{run_id}")
+        lines.append(f"Profile：{context.profile_name}")
         lines.append(f"规则：{rule['id']}")
         lines.append(f"指标：{metric}")
         lines.append(f"最新 step：{latest_step}")
@@ -192,6 +214,8 @@ def main():
         lines.append(f"cd {ROOT} && bash scripts/l2_reject.sh {token}")
         lines.append("")
         lines.append("说明：L2 不会自动改参数，必须确认后才执行。")
+        if context.restart_required:
+            lines.append("说明：该 Profile 的参数修改需要重启训练或下次启动后生效。")
 
         messages.append("\n".join(lines))
 

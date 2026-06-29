@@ -7,6 +7,13 @@ import sys
 import time
 import yaml
 
+from feedback_profile import (
+    append_jsonl as profile_append_jsonl,
+    context_from_proposal,
+    resolve_path,
+    target_allowed,
+)
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -90,9 +97,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--token", required=True)
     parser.add_argument("--decision", required=True, choices=["confirm", "reject"])
+    parser.add_argument("--pending-dir", default="runs/l2_pending")
     args = parser.parse_args()
 
-    proposal_path = os.path.join(ROOT, "runs", "l2_pending", f"{args.token}.json")
+    proposal_path = os.path.join(resolve_path(args.pending_dir), f"{args.token}.json")
 
     if not os.path.exists(proposal_path):
         print(f"❌ 找不到 L2 提案 token: {args.token}")
@@ -100,6 +108,8 @@ def main():
 
     with open(proposal_path, "r", encoding="utf-8") as f:
         proposal = json.load(f)
+
+    context = context_from_proposal(proposal)
 
     if proposal.get("status") != "pending":
         print(f"⚠️ 这个 L2 提案已经处理过了，当前状态：{proposal.get('status')}")
@@ -112,38 +122,42 @@ def main():
         with open(proposal_path, "w", encoding="utf-8") as f:
             json.dump(proposal, f, ensure_ascii=False, indent=2)
 
-        append_jsonl(os.path.join(ROOT, "runs", "adjustments.jsonl"), {
+        profile_append_jsonl(context.adjustments_path, {
             "timestamp": time.time(),
             "run_id": proposal["run_id"],
+            "profile_name": context.profile_name,
+            "trainer_kind": context.trainer_kind,
             "level": "L2",
             "decision": "rejected",
             "token": args.token,
             "rule_id": proposal["rule"]["id"],
             "reason": proposal["reason"],
+            "restart_required": context.restart_required,
         })
 
-        print("✅ 已拒绝 L2 调整。不会修改 hyper.yaml。")
+        print("✅ 已拒绝 L2 调整。不会修改配置。")
         return
 
-    hyper_path = proposal["hyper_config"]
-    hyper_full = os.path.join(ROOT, hyper_path)
-    hyper_cfg = load_yaml(hyper_path)
+    config_path = context.adjust_config_path
+    config_full = resolve_path(config_path)
+    config_cfg = load_yaml(config_path)
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    backup_path = f"{hyper_full}.bak_l2_{timestamp}"
-    shutil.copyfile(hyper_full, backup_path)
+    backup_path = f"{config_full}.bak_l2_{timestamp}"
+    shutil.copyfile(config_full, backup_path)
 
     changes = []
-    max_ratio = float(proposal.get("l2_max_change_ratio", 0.30))
+    max_ratio = float(context.l2_max_change_ratio)
 
     try:
         for s in proposal["rule"].get("suggestions", []):
             target = s["target"]
 
-            if not target.startswith("ppo."):
-                raise ValueError(f"安全限制：L2 目前只允许修改 ppo.*，不允许修改 {target}")
+            if not target_allowed(context, target):
+                allowed = ", ".join(context.allowed_target_prefixes)
+                raise ValueError(f"安全限制：{context.profile_name} 只允许修改 {allowed}，不允许修改 {target}")
 
-            old_value = nested_get(hyper_cfg, target)
+            old_value = nested_get(config_cfg, target)
 
             if not isinstance(old_value, (int, float)):
                 raise ValueError(f"目标参数不是数字：{target}={old_value}")
@@ -154,7 +168,7 @@ def main():
             if target.endswith("learning_rate") and new_value <= 0:
                 raise ValueError("learning_rate 调整后小于等于 0，已阻止。")
 
-            nested_set(hyper_cfg, target, new_value)
+            nested_set(config_cfg, target, new_value)
 
             changes.append({
                 "target": target,
@@ -165,18 +179,18 @@ def main():
                 "reason": s.get("reason"),
             })
 
-        save_yaml(hyper_path, hyper_cfg)
+        save_yaml(config_path, config_cfg)
 
         lint_ok, lint_output = run_lint()
 
         if not lint_ok:
-            shutil.copyfile(backup_path, hyper_full)
+            shutil.copyfile(backup_path, config_full)
             print("❌ L2 修改后 lint 失败，已经回滚。")
             print(lint_output)
             return
 
     except Exception as e:
-        shutil.copyfile(backup_path, hyper_full)
+        shutil.copyfile(backup_path, config_full)
         print("❌ L2 执行失败，已经回滚。")
         print(str(e))
         return
@@ -185,14 +199,17 @@ def main():
     proposal["decided_at"] = time.time()
     proposal["changes"] = changes
     proposal["backup_path"] = backup_path
+    proposal["restart_required"] = context.restart_required
 
     with open(proposal_path, "w", encoding="utf-8") as f:
         json.dump(proposal, f, ensure_ascii=False, indent=2)
 
     for c in changes:
-        append_jsonl(os.path.join(ROOT, "runs", "adjustments.jsonl"), {
+        profile_append_jsonl(context.adjustments_path, {
             "timestamp": time.time(),
             "run_id": proposal["run_id"],
+            "profile_name": context.profile_name,
+            "trainer_kind": context.trainer_kind,
             "level": "L2",
             "decision": "confirmed",
             "token": args.token,
@@ -205,8 +222,10 @@ def main():
             "reason": proposal["reason"],
             "latest_step": proposal["latest"].get("step"),
             "latest_value": proposal["latest"].get("value"),
-            "hyper_path": hyper_path,
+            "config_path": config_path,
+            "hyper_path": config_path,
             "backup_path": backup_path,
+            "restart_required": context.restart_required,
         })
 
     print("✅ L2 调整已确认并执行。")
@@ -216,6 +235,8 @@ def main():
     for c in changes:
         print(f"- {c['target']}: {c['old_value']} -> {c['new_value']}")
     print("✅ lint 校验通过。")
+    if context.restart_required:
+        print("说明：该配置变更需要重启训练或下次启动后生效。")
 
 
 if __name__ == "__main__":

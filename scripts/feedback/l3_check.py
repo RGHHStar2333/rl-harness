@@ -7,6 +7,14 @@ import sys
 import time
 import yaml
 
+from feedback_profile import (
+    active_training_gate,
+    append_jsonl as profile_append_jsonl,
+    load_feedback_context,
+    load_yaml as profile_load_yaml,
+    resolve_path,
+)
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -138,15 +146,16 @@ def run_pause(reason):
     return result.returncode, result.stdout + result.stderr
 
 
-def format_l3_message(pipeline, rule, reason, latest, pause_output):
-    project = pipeline["project"]
+def format_l3_message(context, rule, reason, latest, pause_output):
+    project = context.project
 
     lines = []
     lines.append("🔴 RL Harness L3 紧急告警")
     lines.append("")
     lines.append(f"项目：{project['name']}")
     lines.append(f"任务：{project['task']}")
-    lines.append(f"Run ID：{project['run_id']}")
+    lines.append(f"Run ID：{context.run_id}")
+    lines.append(f"Profile：{context.profile_name}")
     lines.append(f"规则：{rule['id']}")
     lines.append(f"指标：{rule.get('metric')}")
 
@@ -172,12 +181,17 @@ def main():
     parser.add_argument("--config", required=True)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--force-l3-test", action="store_true")
+    parser.add_argument("--allow-inactive", action="store_true")
     args = parser.parse_args()
 
-    pipeline = load_yaml(args.config)
-    rules_cfg = load_yaml(pipeline["paths"]["detection_rules"])
+    context = load_feedback_context(args.config)
+    rules_cfg = profile_load_yaml(context.rules_path)
 
-    state_path = os.path.join(ROOT, "runs", "_l3_pause_state.json")
+    state_path = resolve_path(
+        "runs/_l3_pause_state.json"
+        if context.trainer_kind == "sb3"
+        else f"{context.state_path_prefix}_l3_pause_state.json"
+    )
     state = load_state(state_path)
 
     l3_rules = [r for r in rules_cfg["rules"] if r.get("response_level") == "L3"]
@@ -192,11 +206,16 @@ def main():
         reason = "force-l3-test 手动测试触发"
 
         code, pause_output = run_pause(reason)
-        print(format_l3_message(pipeline, rule, reason, latest, pause_output))
+        print(format_l3_message(context, rule, reason, latest, pause_output))
         return
 
-    run_dir = os.path.join(ROOT, pipeline["paths"]["run_dir"])
-    log_path = os.path.join(run_dir, "train.jsonl")
+    gate_ok, gate_reason = active_training_gate(context, allow_inactive=args.allow_inactive)
+    if not gate_ok:
+        if args.debug:
+            print(f"L3 {context.profile_name}：{gate_reason}")
+        return
+
+    log_path = resolve_path(context.metric_log_path)
     rows = load_jsonl(log_path)
 
     if not rows:
@@ -216,7 +235,7 @@ def main():
             continue
 
         latest_step = int(latest.get("step", 0)) if latest else 0
-        pause_key = f"{pipeline['project']['run_id']}::{rule['id']}::{latest_step}"
+        pause_key = f"{context.run_id}::{rule['id']}::{latest_step}"
 
         if pause_key in state["paused"]:
             continue
@@ -231,7 +250,22 @@ def main():
             "returncode": code,
         }
 
-        messages.append(format_l3_message(pipeline, rule, reason, latest, pause_output))
+        profile_append_jsonl(context.adjustments_path, {
+            "timestamp": time.time(),
+            "run_id": context.run_id,
+            "profile_name": context.profile_name,
+            "trainer_kind": context.trainer_kind,
+            "level": "L3",
+            "rule_id": rule["id"],
+            "target": rule.get("emergency_action", "pause_training"),
+            "reason": reason,
+            "latest_step": latest_step,
+            "latest_value": latest.get("value") if latest else None,
+            "returncode": code,
+            "restart_required": False,
+        })
+
+        messages.append(format_l3_message(context, rule, reason, latest, pause_output))
 
     save_state(state_path, state)
 

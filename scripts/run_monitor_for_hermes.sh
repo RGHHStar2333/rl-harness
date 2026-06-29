@@ -27,6 +27,9 @@ case "${1:-}" in
       python3 scripts/feedback/l2_check.py --config configs/pipeline.yaml "$@"
       python3 scripts/feedback/l3_check.py --config configs/pipeline.yaml "$@"
     fi
+    if [ -f configs/tasks/mjlab/feedback.yaml ]; then
+      MJLAB_SKIP_PARSE=1 bash scripts/mjlab/run_g1_feedback.sh "$@" || true
+    fi
     ;;
 esac
 

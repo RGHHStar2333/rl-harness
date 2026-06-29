@@ -1,0 +1,23 @@
+feedback_profile:
+  name: mjlab_g1_feedback
+  enabled: true
+  trainer_kind: mjlab
+  require_active_training: true
+  project:
+    name: rl_harness_mjlab
+    task: Mjlab-Velocity-Flat-Unitree-G1
+    run_id: mjlab_g1_4096_10000
+  paths:
+    metric_log: runs/mjlab_g1_4096_10000/train.jsonl
+    rules_config: configs/tasks/mjlab/detection_rules.yaml
+    adjustable_config: configs/tasks/mjlab/go1.yaml
+    adjustments_log: runs/adjustments.jsonl
+    l2_pending_dir: runs/l2_pending
+    state_path_prefix: runs/_mjlab_g1_feedback
+  safety:
+    allowed_target_prefixes:
+      - mjlab.agent.algorithm.
+    l1_max_change_ratio: 0.1
+    l2_max_change_ratio: 0.3
+  restart:
+    required_after_adjustment: true

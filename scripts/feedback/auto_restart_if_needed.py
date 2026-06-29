@@ -24,6 +24,9 @@ def read_adjustments():
 
 
 def should_restart(row):
+    if row.get("trainer_kind") == "mjlab":
+        return False
+
     level = row.get("level")
 
     if level == "L1":
@@ -44,8 +47,23 @@ def main():
     new_rows = rows[args.since_line:]
 
     restart_rows = [r for r in new_rows if should_restart(r)]
+    mjlab_restart_rows = [
+        r
+        for r in new_rows
+        if r.get("trainer_kind") == "mjlab" and r.get("restart_required")
+    ]
 
     if not restart_rows:
+        if mjlab_restart_rows:
+            last = mjlab_restart_rows[-1]
+            print("ℹ️ 检测到 MJLab 参数调整：不会自动调用 HalfCheetah checkpoint 重启。")
+            print(f"profile: {last.get('profile_name')}")
+            print(f"target: {last.get('target')}")
+            print(f"old_value: {last.get('old_value')}")
+            print(f"new_value: {last.get('new_value')}")
+            print("说明：MJLab 调整会在重启训练或下次启动时生效。")
+            return
+
         print("✅ 没有新的 L1/L2 confirmed 调整，不需要重启。")
         return
 

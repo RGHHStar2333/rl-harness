@@ -1,0 +1,39 @@
+rules:
+  - id: mjlab_g1_mild_plateau_l1
+    description: MJLab G1 reward is improving too slowly, apply a small automatic learning-rate reduction.
+    metric: train/episode_reward_mean
+    condition:
+      type: trend
+      window: 5
+      min_delta: 1.0
+    response_level: L1
+    cooldown_steps: 50000000
+    auto_adjust:
+      target: mjlab.agent.algorithm.learning_rate
+      operation: multiply
+      value: 0.95
+      reason: Small automatic learning-rate reduction for MJLab G1.
+
+  - id: mjlab_g1_reward_plateau_l2
+    description: MJLab G1 reward has not improved enough for a longer period.
+    metric: train/episode_reward_mean
+    condition:
+      type: trend
+      window: 10
+      min_delta: 2.0
+    response_level: L2
+    suggestions:
+      - target: mjlab.agent.algorithm.learning_rate
+        operation: multiply
+        value: 0.8
+        reason: Lower learning rate if MJLab G1 reward is stuck.
+
+  - id: mjlab_g1_reward_crash_l3
+    description: MJLab G1 reward dropped to a dangerous value.
+    metric: train/episode_reward_mean
+    condition:
+      type: threshold
+      operator: "<"
+      value: 5
+    response_level: L3
+    emergency_action: pause_training
