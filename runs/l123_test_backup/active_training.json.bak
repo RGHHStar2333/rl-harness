@@ -1,0 +1,9 @@
+{
+  "status": "running",
+  "kind": "mjlab",
+  "run_id": "mjlab_g1_4096_10000",
+  "pid": 249408,
+  "project_dir": "/home/leju/mjlab/src",
+  "command": "uv run train Mjlab-Velocity-Flat-Unitree-G1 --env.scene.num-envs 4096 --agent.max-iterations 10000 --agent.logger wandb --agent.wandb-project rl-harness-mjlab --agent.run-name mjlab_g1_4096_10000",
+  "log": "runs/mjlab_g1_4096_10000/training_process.log"
+}

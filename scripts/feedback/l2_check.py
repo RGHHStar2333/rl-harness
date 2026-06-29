@@ -219,6 +219,7 @@ def main():
 
         messages.append("\n".join(lines))
 
+    os.makedirs(os.path.dirname(state_path), exist_ok=True)
     with open(state_path, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
 

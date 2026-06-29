@@ -1,0 +1,42 @@
+{
+  "notified": {
+    "halfcheetah_mvp_001::halfcheetah_reward_plateau::100000": {
+      "time": 1782283562.9866185,
+      "rule_id": "halfcheetah_reward_plateau",
+      "step": 100000,
+      "reason": "最近 5 个记录增长 5.846，低于要求 50.000"
+    },
+    "halfcheetah_mvp_001::halfcheetah_mild_plateau_l1::100000": {
+      "time": 1782287588.3324509,
+      "rule_id": "halfcheetah_mild_plateau_l1",
+      "step": 100000,
+      "reason": "最近 5 个记录增长 9.452，低于要求 10.000"
+    },
+    "halfcheetah_mvp_001::halfcheetah_reward_plateau_l2::100000": {
+      "time": 1782287588.3325133,
+      "rule_id": "halfcheetah_reward_plateau_l2",
+      "step": 100000,
+      "reason": "最近 10 个记录增长 22.298，低于要求 50.000"
+    },
+    "halfcheetah_mvp_001::halfcheetah_reward_plateau_l2::13000": {
+      "time": 1782288847.5829616,
+      "rule_id": "halfcheetah_reward_plateau_l2",
+      "step": 13000,
+      "reason": "最近 10 个记录增长 -56.252，低于要求 50.000"
+    },
+    "halfcheetah_mvp_001::halfcheetah_reward_plateau_l2::200000": {
+      "time": 1782289605.4981434,
+      "rule_id": "halfcheetah_reward_plateau_l2",
+      "step": 200000,
+      "reason": "最近 10 个记录增长 40.267，低于要求 50.000"
+    }
+  },
+  "l1_auto": {
+    "halfcheetah_mvp_001::halfcheetah_mild_plateau_l1": {
+      "last_step": 100000,
+      "last_time": 1782287588.332438,
+      "ok": true,
+      "dry_run": false
+    }
+  }
+}

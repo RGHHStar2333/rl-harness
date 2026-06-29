@@ -34,11 +34,33 @@ The script folder is organized by responsibility. Top-level files are compatibil
 - `mjlab/start_mjlab_training.sh`: launch MJLab Go1 training.
 - `mjlab/play_mjlab.sh`: play the MJLab task.
 - `mjlab/parse_mjlab_metrics.py`: parse MJLab `training_process.log` into Harness-compatible `train.jsonl`.
+- `mjlab/run_g1_feedback.sh`: refresh MJLab G1 metrics and run the MJLab G1 L1/L2/L3 feedback pass.
+- `run_mjlab_g1_feedback.sh`: compatibility wrapper for the MJLab G1 feedback pass.
 
 Sync MJLab metrics for the configured run:
 
 ```bash
 python scripts/parse_mjlab_metrics.py --config configs/tasks/mjlab/go1.yaml
+```
+
+Run the MJLab G1 feedback pass manually:
+
+```bash
+bash scripts/run_mjlab_g1_feedback.sh --debug
+```
+
+The scheduled Hermes entry point also refreshes MJLab metrics and runs the MJLab G1 feedback profile after the existing HalfCheetah pass:
+
+```bash
+bash scripts/run_monitor_for_hermes.sh --debug
+```
+
+MJLab G1 L1/L2 changes update `configs/tasks/mjlab/go1.yaml` at `mjlab.agent.algorithm.learning_rate`. They are recorded with `trainer_kind: mjlab` and `restart_required: true`, so they take effect after restarting MJLab training or on the next launch. They do not call the HalfCheetah checkpoint restart script.
+
+Verify the MJLab launch command without starting training:
+
+```bash
+bash scripts/mjlab/start_mjlab_training.sh --dry-run
 ```
 
 ## Compatibility

@@ -5,41 +5,71 @@
     {
       "name": "final_model.zip",
       "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/final_model.zip",
-      "size_bytes": 166260,
-      "modified_time": 1782284516.9212213
+      "size_bytes": 166272,
+      "modified_time": 1782289704.0077424
     },
     {
       "name": "model_step_100000.zip",
       "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/model_step_100000.zip",
-      "size_bytes": 166214,
-      "modified_time": 1782284516.5082247
+      "size_bytes": 166226,
+      "modified_time": 1782289703.172742
     },
     {
       "name": "model_step_80000.zip",
       "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/model_step_80000.zip",
-      "size_bytes": 165388,
-      "modified_time": 1782284508.9062886
+      "size_bytes": 165400,
+      "modified_time": 1782289693.310736
     },
     {
       "name": "model_step_60000.zip",
       "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/model_step_60000.zip",
-      "size_bytes": 164548,
-      "modified_time": 1782284501.2953534
+      "size_bytes": 164560,
+      "modified_time": 1782289685.971731
     },
     {
       "name": "model_step_40000.zip",
       "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/model_step_40000.zip",
-      "size_bytes": 163720,
-      "modified_time": 1782284490.961443
+      "size_bytes": 163732,
+      "modified_time": 1782289677.287724
     }
   ],
   "cleanup_candidates": [
     {
       "name": "model_step_20000.zip",
       "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/model_step_20000.zip",
-      "size_bytes": 162895,
-      "modified_time": 1782284482.623516
+      "size_bytes": 162907,
+      "modified_time": 1782289667.6467152
+    },
+    {
+      "name": "model_step_200000.zip",
+      "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/model_step_200000.zip",
+      "size_bytes": 166791,
+      "modified_time": 1782289498.7013524
+    },
+    {
+      "name": "model_step_180000.zip",
+      "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/model_step_180000.zip",
+      "size_bytes": 166790,
+      "modified_time": 1782289490.5743237
+    },
+    {
+      "name": "model_step_160000.zip",
+      "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/model_step_160000.zip",
+      "size_bytes": 166778,
+      "modified_time": 1782289482.3342934
+    },
+    {
+      "name": "model_step_140000.zip",
+      "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/model_step_140000.zip",
+      "size_bytes": 166790,
+      "modified_time": 1782289472.354255
+    },
+    {
+      "name": "model_step_120000.zip",
+      "path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/checkpoints/halfcheetah_mvp_001/model_step_120000.zip",
+      "size_bytes": 166778,
+      "modified_time": 1782289464.5872238
     }
   ],
-  "cleanup_size_bytes": 162895
+  "cleanup_size_bytes": 996834
 }

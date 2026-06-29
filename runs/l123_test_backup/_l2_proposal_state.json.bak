@@ -1,0 +1,19 @@
+{
+  "proposed": {
+    "halfcheetah_mvp_001::halfcheetah_reward_plateau_l2::100000": {
+      "token": "4f0c090e",
+      "time": 1782288122.3057337,
+      "proposal_path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/runs/l2_pending/4f0c090e.json"
+    },
+    "halfcheetah_mvp_001::halfcheetah_reward_plateau_l2::13000": {
+      "token": "264944aa",
+      "time": 1782288847.61208,
+      "proposal_path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/runs/l2_pending/264944aa.json"
+    },
+    "halfcheetah_mvp_001::halfcheetah_reward_plateau_l2::200000": {
+      "token": "41f9e933",
+      "time": 1782289605.526839,
+      "proposal_path": "/home/leju/桌面/rrr/Harness_RL/rl-harness/runs/l2_pending/41f9e933.json"
+    }
+  }
+}
