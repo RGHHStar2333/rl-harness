@@ -6,36 +6,25 @@ mjlab:
   max_iterations: 10000
   wandb_project: rl-harness-mjlab
   wandb_name: mjlab_g1_4096_10000
-
 agent:
-  learning_rate: 0.001
-
+  learning_rate: 0.00095
 reward_weights:
-  track_linear_velocity: 2.0
+  track_linear_velocity: 2.1
   track_angular_velocity: 2.0
   upright: 1.0
   pose: 1.0
   action_rate_l2: -0.1
   foot_slip: -0.1
   foot_clearance: -2.0
-  soft_landing: -0.00001
+  soft_landing: -1.0e-05
   self_collisions: -1.0
-
 autotune:
   enabled: true
-
-  # L1: 小问题，自动小幅修改
   l1_window: 5
   l1_min_improvement: 0.2
   l1_cooldown_iterations: 500
-
-  # L2: 中等问题，生成 token，确认后修改
   l2_window: 10
   l2_min_improvement: 0.5
   l2_cooldown_iterations: 1000
-
-  # 如果线速度误差大，自动加强 track_linear_velocity
   velocity_error_threshold: 0.25
-
-  # L3: reward 严重崩溃，自动暂停
   l3_reward_crash_threshold: -30.0
