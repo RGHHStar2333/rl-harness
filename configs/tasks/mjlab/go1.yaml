@@ -5,6 +5,7 @@ mjlab:
   num_envs: 4096
   max_iterations: 10000
   wandb_project: rl-harness-mjlab
+  wandb_entity: rghhstar-leju
   wandb_name: mjlab_g1_4096_10000
 agent:
   learning_rate: 0.00095
@@ -28,3 +29,6 @@ autotune:
   l2_cooldown_iterations: 1000
   velocity_error_threshold: 0.25
   l3_reward_crash_threshold: -30.0
+  auto_resume: true
+  resume_from: latest
+  checkpoint_subdir: logs/rsl_rl/g1_velocity
