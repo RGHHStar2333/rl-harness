@@ -33,6 +33,13 @@ The script folder is organized by responsibility. Top-level files are compatibil
 
 - `mjlab/start_mjlab_training.sh`: launch MJLab Go1 training.
 - `mjlab/play_mjlab.sh`: play the MJLab task.
+- `mjlab/parse_mjlab_metrics.py`: parse MJLab `training_process.log` into Harness-compatible `train.jsonl`.
+
+Sync MJLab metrics for the configured run:
+
+```bash
+python scripts/parse_mjlab_metrics.py --config configs/tasks/mjlab/go1.yaml
+```
 
 ## Compatibility
 

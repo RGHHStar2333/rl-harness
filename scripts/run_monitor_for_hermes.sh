@@ -13,6 +13,10 @@ else
   before_lines=0
 fi
 
+if [ -f configs/tasks/mjlab/go1.yaml ]; then
+  python3 scripts/mjlab/parse_mjlab_metrics.py --config configs/tasks/mjlab/go1.yaml || true
+fi
+
 case "${1:-}" in
   --force-l3-test)
     python3 scripts/feedback/l3_check.py --config configs/pipeline.yaml --force-l3-test
