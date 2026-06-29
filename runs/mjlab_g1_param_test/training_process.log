@@ -1,0 +1,266 @@
+
+================================================================================
+[2026-06-29T16:09:18] START
+cmd: uv run train Mjlab-Velocity-Flat-Unitree-G1 --env.scene.num-envs 16 --agent.max-iterations 3 --agent.logger wandb --agent.wandb-project rl-harness-mjlab --agent.run-name mjlab_g1_param_test --agent.algorithm.learning-rate 0.00095 --env.rewards.track-linear-velocity.weight 2.1 --env.rewards.track-angular-velocity.weight 2.0 --env.rewards.upright.weight 1.0 --env.rewards.pose.weight 1.0 --env.rewards.action-rate-l2.weight -0.1 --env.rewards.foot-slip.weight -0.1 --env.rewards.foot-clearance.weight -2.0 --env.rewards.soft-landing.weight -1e-05 --env.rewards.self-collisions.weight -1.0
+[INFO] Training with: device=cuda:0, seed=42, rank=0
+[INFO] Logging experiment in directory: /home/leju/mjlab/src/logs/rsl_rl/g1_velocity/2026-06-29_16-09-21_mjlab_g1_param_test
+Setting seed: 42
+Warp 1.14.0 initialized:
+   CUDA Toolkit 12.9, Driver 13.0
+   Devices:
+     "cpu"      : "x86_64"
+     "cuda:0"   : "NVIDIA GeForce RTX 4090" (24 GiB, sm_89, mempool enabled)
+   Kernel cache:
+     /home/leju/.cache/warp/1.14.0
+Module mujoco_warp._src.smooth d52f507 load on device 'cuda:0' took 1.74 ms  (cached)
+Module mujoco_warp._src.collision_driver 621a3f9 load on device 'cuda:0' took 0.24 ms  (cached)
+Module _nxn_broadphase__locals__kernel_cd571ca0 cd571ca load on device 'cuda:0' took 0.24 ms  (cached)
+Module _primitive_narrowphase__locals__primitive_narrowphase_4b673863 4b67386 load on device 'cuda:0' took 0.49 ms  (cached)
+Module mujoco_warp._src.constraint e56f243 load on device 'cuda:0' took 1.76 ms  (cached)
+Module _efc_contact_init__locals__kernel_991c9928 991c992 load on device 'cuda:0' took 0.31 ms  (cached)
+Module _efc_contact_jac_sparse__locals__kernel_882c8742 882c874 load on device 'cuda:0' took 0.29 ms  (cached)
+Module _efc_contact_update__locals__kernel_59511347 5951134 load on device 'cuda:0' took 0.29 ms  (cached)
+Module mujoco_warp._src.sensor c89af9a load on device 'cuda:0' took 1.74 ms  (cached)
+Module mujoco_warp._src.forward 79b4faf load on device 'cuda:0' took 0.78 ms  (cached)
+Module mujoco_warp._src.passive cc48b2a load on device 'cuda:0' took 0.67 ms  (cached)
+Module mujoco_warp._src.forward f66d464 load on device 'cuda:0' took 0.91 ms  (cached)
+Module mujoco_warp._src.support c2ffb47 load on device 'cuda:0' took 0.33 ms  (cached)
+Module _solve_LD_sparse_fused__locals__kernel_ccb5ae04 b871a9d load on device 'cuda:0' took 0.38 ms  (cached)
+Module mujoco_warp._src.solver d419bb8 load on device 'cuda:0' took 2.29 ms  (cached)
+Module solve_init_jaref__locals__kernel_448f1be0 448f1be load on device 'cuda:0' took 0.28 ms  (cached)
+Module mul_m_sparse__locals___mul_m_sparse_bd4b0e79 bd4b0e7 load on device 'cuda:0' took 0.23 ms  (cached)
+Module update_constraint_efc__locals__kernel_060c7e30 060c7e3 load on device 'cuda:0' took 0.26 ms  (cached)
+Module update_constraint_gauss_cost__locals__kernel_5d7022bf 5d7022b load on device 'cuda:0' took 0.26 ms  (cached)
+Module update_gradient_cholesky_blocked__locals__kernel_23f94058 a8adba4 load on device 'cuda:0' took 82.56 ms  (cached)
+Module linesearch_jv_fused__locals__kernel_0656a308 0656a30 load on device 'cuda:0' took 0.31 ms  (cached)
+Module linesearch_prepare_gauss__locals__kernel_eec4c4c6 eec4c4c load on device 'cuda:0' took 0.37 ms  (cached)
+Module update_constraint_efc__locals__kernel_7a23931f 7a23931 load on device 'cuda:0' took 0.27 ms  (cached)
+Module update_gradient_cholesky_blocked_skip_unchanged__locals__kernel_087ea562 15d4263 load on device 'cuda:0' took 83.63 ms  (cached)
+Module _contact_sort__locals__contact_sort_321f5f3e 33ea4e1 load on device 'cuda:0' took 0.34 ms  (cached)
+Module mujoco_warp._src.derivative 7009ffc load on device 'cuda:0' took 0.57 ms  (cached)
+Module reset_data__locals__reset_xfrc_applied_03030511 0303051 load on device 'cuda:0' took 0.30 ms  (cached)
+Module reset_data__locals__reset_M_45a61496 45a6149 load on device 'cuda:0' took 0.22 ms  (cached)
+Module reset_data__locals__reset_mocap_6513201c 6513201 load on device 'cuda:0' took 0.20 ms  (cached)
+Module reset_data__locals__reset_contact_ce86818d ce86818 load on device 'cuda:0' took 0.20 ms  (cached)
+Module reset_data__locals__reset_nworld_1743ec1f 1743ec1 load on device 'cuda:0' took 0.24 ms  (cached)
+Module mujoco_warp._src.render_util ff4fe80 load on device 'cuda:0' took 0.36 ms  (cached)
+Module mujoco_warp._src.bvh d9cfd91 load on device 'cuda:0' took 0.61 ms  (cached)
+Module mujoco_warp._src.ray d79c433 load on device 'cuda:0' took 0.69 ms  (cached)
+
++---------------------------------+
+|         Base Environment        |
++------------------------+--------+
+| Property               | Value  |
++------------------------+--------+
+| Number of environments | 16     |
+| Environment device     | cuda:0 |
+| Environment seed       | 42     |
+| Physics step-size      | 0.005  |
+| Environment step-size  | 0.02   |
++------------------------+--------+
+
+[INFO] <EventManager> contains 3 active terms.
++-------------------------------------+
+| Active Event Terms in Mode: 'reset' |
++--------+----------------------------+
+| Index  | Name                       |
++--------+----------------------------+
+|   0    | reset_base                 |
+|   1    | reset_robot_joints         |
++--------+----------------------------+
++----------------------------------------------+
+|    Active Event Terms in Mode: 'interval'    |
++-------+------------+-------------------------+
+| Index | Name       | Interval time range (s) |
++-------+------------+-------------------------+
+|   0   | push_robot |        (1.0, 3.0)       |
++-------+------------+-------------------------+
++---------------------------------------+
+| Active Event Terms in Mode: 'startup' |
++-----------+---------------------------+
+|   Index   | Name                      |
++-----------+---------------------------+
+|     0     | foot_friction             |
+|     1     | encoder_bias              |
+|     2     | base_com                  |
++-----------+---------------------------+
++-----------------------------+
+| Domain Randomization Fields |
++-------+---------------------+
+| Index | Field Name          |
++-------+---------------------+
+|   0   | geom_friction       |
+|   1   | body_ipos           |
+|   2   | body_subtreemass    |
+|   3   | dof_invweight0      |
+|   4   | body_invweight0     |
+|   5   | tendon_length0      |
+|   6   | tendon_invweight0   |
++-------+---------------------+
+
+Module repeat_array_kernel_4f67a4c3 711f54c load on device 'cuda:0' took 0.27 ms  (cached)
+Module repeat_array_kernel_4f67a4c3 7224d07 load on device 'cuda:0' took 0.25 ms  (cached)
+Module repeat_array_kernel_4f67a4c3 b2885b0 load on device 'cuda:0' took 0.26 ms  (cached)
+[INFO] <CommandManager> contains 1 active terms.
++----------------------------------------+
+|          Active Command Terms          |
++-------+-------+------------------------+
+| Index | Name  |          Type          |
++-------+-------+------------------------+
+|   0   | twist | UniformVelocityCommand |
++-------+-------+------------------------+
+
+[INFO] <ActionManager> contains 1 active terms.
++---------------------------------+
+| Active Action Terms (shape: 29) |
++-------+-----------+-------------+
+| Index | Name      |   Dimension |
++-------+-----------+-------------+
+|   0   | joint_pos |          29 |
++-------+-----------+-------------+
+
+[INFO] <ObservationManager> contains 2 groups.
++-----------------------------------------------------------+
+| Active Observation Terms in Group: 'actor' (shape: (99,)) |
++-----------+----------------------------------+------------+
+|   Index   | Name                             |   Shape    |
++-----------+----------------------------------+------------+
+|     0     | base_lin_vel                     |    (3,)    |
+|     1     | base_ang_vel                     |    (3,)    |
+|     2     | projected_gravity                |    (3,)    |
+|     3     | joint_pos                        |   (29,)    |
+|     4     | joint_vel                        |   (29,)    |
+|     5     | actions                          |   (29,)    |
+|     6     | command                          |    (3,)    |
++-----------+----------------------------------+------------+
++-------------------------------------------------------------+
+| Active Observation Terms in Group: 'critic' (shape: (111,)) |
++-----------+------------------------------------+------------+
+|   Index   | Name                               |   Shape    |
++-----------+------------------------------------+------------+
+|     0     | base_lin_vel                       |    (3,)    |
+|     1     | base_ang_vel                       |    (3,)    |
+|     2     | projected_gravity                  |    (3,)    |
+|     3     | joint_pos                          |   (29,)    |
+|     4     | joint_vel                          |   (29,)    |
+|     5     | actions                            |   (29,)    |
+|     6     | command                            |    (3,)    |
+|     7     | foot_height                        |    (2,)    |
+|     8     | foot_air_time                      |    (2,)    |
+|     9     | foot_contact                       |    (2,)    |
+|     10    | foot_contact_forces                |    (6,)    |
++-----------+------------------------------------+------------+
+
+[INFO] <TerminationManager> contains 2 active terms.
++------------------------------+
+|   Active Termination Terms   |
++-------+-----------+----------+
+| Index | Name      | Time Out |
++-------+-----------+----------+
+|   0   | time_out  |   True   |
+|   1   | fell_over |  False   |
++-------+-----------+----------+
+
+[INFO] <RewardManager> contains 14 active terms.
++-----------------------------------------+
+|           Active Reward Terms           |
++-------+------------------------+--------+
+| Index | Name                   | Weight |
++-------+------------------------+--------+
+|   0   | track_linear_velocity  |    2.1 |
+|   1   | track_angular_velocity |    2.0 |
+|   2   | upright                |    1.0 |
+|   3   | pose                   |    1.0 |
+|   4   | body_ang_vel           |  -0.05 |
+|   5   | angular_momentum       |  -0.02 |
+|   6   | dof_pos_limits         |   -1.0 |
+|   7   | action_rate_l2         |   -0.1 |
+|   8   | air_time               |    0.0 |
+|   9   | foot_clearance         |   -2.0 |
+|   10  | foot_swing_height      |  -0.25 |
+|   11  | foot_slip              |   -0.1 |
+|   12  | soft_landing           | -1e-05 |
+|   13  | self_collisions        |   -1.0 |
++-------+------------------------+--------+
+
+[INFO] <CurriculumManager> contains 1 active terms.
++-------------------------+
+| Active Curriculum Terms |
++--------+----------------+
+| Index  | Name           |
++--------+----------------+
+|   0    | command_vel    |
++--------+----------------+
+
+[INFO] <MetricsManager> contains 1 active terms.
++-------------------------+
+|   Active Metrics Terms  |
++-------+-----------------+
+| Index | Name            |
++-------+-----------------+
+|   0   | mean_action_acc |
++-------+-----------------+
+
+[INFO] <NullRecorderManager> (inactive)
+Module mujoco_warp._src.io bc8414b load on device 'cuda:0' took 0.93 ms  (cached)
+--------------------------------------------------------------------------------
+Resolved observation sets: 
+	 actor :  ('actor',)
+	 critic :  ('critic',)
+--------------------------------------------------------------------------------
+Actor Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (distribution): GaussianDistribution()
+  (mlp): MLP(
+    (0): Linear(in_features=99, out_features=512, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=512, out_features=256, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=256, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=29, bias=True)
+  )
+)
+Critic Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (mlp): MLP(
+    (0): Linear(in_features=111, out_features=512, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=512, out_features=256, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=256, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=1, bias=True)
+  )
+)
+wandb: WARNING `start_method` is deprecated and will be removed in a future version of wandb. This setting is currently non-functional and safely ignored.
+wandb: W&B API key is configured. Use `wandb login --relogin` to force relogin
+wandb: setting up run xdxtfkk7
+wandb: Tracking run with wandb version 0.22.3
+wandb: Run data is saved locally in /home/leju/mjlab/src/wandb/run-20260629_160933-xdxtfkk7
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run 2026-06-29_16-09-21_mjlab_g1_param_test
+wandb: ⭐️ View project at https://wandb.ai/rghhstar-leju/rl-harness-mjlab
+wandb: 🚀 View run at https://wandb.ai/rghhstar-leju/rl-harness-mjlab/runs/xdxtfkk7
+Storing git diff for 'mjlab' in: /home/leju/mjlab/src/logs/rsl_rl/g1_velocity/2026-06-29_16-09-21_mjlab_g1_param_test/git/mjlab.diff
+################################################################################
+[1m                             Learning iteration 0/3                             [0m 
+
+                               Run name: mjlab_g1_param_test
+                            Total steps: 384 
+                       Steps per second: 789 
+                        Collection time: 0.390s 
+                          Learning time: 0.096s 
+                        Mean value loss: 0.6367
+                    Mean surrogate loss: -0.0797
+                      Mean entropy loss: 41.1528
+                        Mean action std: 1.00
+             Metrics/slip_velocity_mean: 0.3617
+               Metrics/peak_height_mean: 0.0085
+             Metrics/landing_force_mean: 276.3280
+          Metrics/angular_momentum_mean: 1.4956
+--------------------------------------------------------------------------------
+                         Iteration time: 0.49s
+                           Time elapsed: 0:00:00
+                                    ETA: 0:00:00
+

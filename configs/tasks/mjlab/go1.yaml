@@ -7,6 +7,7 @@ mjlab:
   wandb_project: rl-harness-mjlab
   wandb_entity: rghhstar-leju
   wandb_name: mjlab_g1_4096_10000
+  wandb_run_id: ly2ivxll
 agent:
   learning_rate: 0.00095
 reward_weights:

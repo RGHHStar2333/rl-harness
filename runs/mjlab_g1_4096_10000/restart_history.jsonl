@@ -1,0 +1,2 @@
+{"time":"2026-06-29T16:28:35+08:00","event":"restart_from_checkpoint","run_id":"mjlab_g1_4096_10000","checkpoint":"/home/leju/mjlab/src/logs/rsl_rl/g1_velocity/2026-06-29_11-21-58_mjlab_g1_4096_10000/model_9999.pt","num_envs":"4096","max_iterations":"10000"}
+{"time":"2026-06-29T16:36:41+08:00","event":"restart_from_checkpoint","run_id":"mjlab_g1_4096_10000","checkpoint":"/home/leju/mjlab/src/logs/rsl_rl/g1_velocity/2026-06-29_11-21-58_mjlab_g1_4096_10000/model_9999.pt","num_envs":"4096","max_iterations":"10000"}
