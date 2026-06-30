@@ -3,6 +3,7 @@ import argparse
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -103,14 +104,43 @@ def latest_decision_step(history_path):
     return last
 
 
-def find_latest_wandb_run(entity, project, run_name):
+def discover_latest_local_wandb_run_id(run_id):
+    log_path = ROOT / "runs" / str(run_id) / "training_process.log"
+    if not log_path.exists():
+        return None
+
+    patterns = [
+        re.compile(r"wandb\.ai/[^/]+/[^/]+/runs/([A-Za-z0-9_-]+)"),
+        re.compile(r"/wandb/run-\d{8}_\d{6}-([A-Za-z0-9_-]+)"),
+    ]
+    found = []
+
+    for line in log_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        for pattern in patterns:
+            match = pattern.search(line)
+            if match:
+                found.append(match.group(1))
+
+    return found[-1] if found else None
+
+
+def find_latest_wandb_run(entity, project, run_name, wandb_run_id=None):
     import wandb
 
     api = wandb.Api()
+
+    if wandb_run_id:
+        try:
+            return api.run(f"{entity}/{project}/{wandb_run_id}")
+        except Exception as exc:
+            print(f"⚠️ W&B run_id={wandb_run_id} 直连失败，回退到 run name 搜索：{exc}")
+
     runs = list(api.runs(f"{entity}/{project}"))
     matched = [r for r in runs if r.name == run_name or getattr(r, "display_name", None) == run_name]
 
     if not matched:
+        if wandb_run_id:
+            raise RuntimeError(f"没有在 W&B 找到 run_id = {wandb_run_id} 或 run name = {run_name}")
         raise RuntimeError(f"没有在 W&B 找到 run name = {run_name}")
 
     matched.sort(key=lambda r: getattr(r, "created_at", "") or "", reverse=True)
@@ -304,6 +334,9 @@ def main():
     project = section_get(text, "mjlab", "wandb_project", simple_get(text, "wandb_project"))
     entity = section_get(text, "mjlab", "wandb_entity", os.environ.get("WANDB_ENTITY", "rghhstar-leju"))
     run_name = section_get(text, "mjlab", "wandb_name", simple_get(text, "wandb_name", run_id))
+    configured_wandb_run_id = section_get(text, "mjlab", "wandb_run_id", simple_get(text, "wandb_run_id"))
+    local_wandb_run_id = discover_latest_local_wandb_run_id(run_id)
+    wandb_run_id = local_wandb_run_id or configured_wandb_run_id
 
     lr = parse_float(section_get(text, "agent", "learning_rate", "0.001"), 0.001)
 
@@ -335,9 +368,13 @@ def main():
         print("🔎 正在读取 W&B 曲线")
         print(f"entity: {entity}")
         print(f"project: {project}")
+        if wandb_run_id:
+            print(f"run_id: {wandb_run_id}")
+            if configured_wandb_run_id and local_wandb_run_id and configured_wandb_run_id != local_wandb_run_id:
+                print(f"说明：使用训练日志里的最新 W&B run_id，覆盖配置中的旧值 {configured_wandb_run_id}")
         print(f"run_name: {run_name}")
 
-        run = find_latest_wandb_run(entity, project, run_name)
+        run = find_latest_wandb_run(entity, project, run_name, wandb_run_id)
         wandb_path = "/".join(run.path)
         print(f"✅ 找到 W&B run: {run.path}")
         rows = collect_history(run)

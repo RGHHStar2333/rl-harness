@@ -14,6 +14,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 ITERATION_RE = re.compile(r"Learning iteration\s+(\d+)\s*/\s*(\d+)")
+START_RE = re.compile(r"\[([^\]]+)\]\s+START")
 NUMBER_RE = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?")
 
 AGGREGATE_METRICS = {
@@ -137,40 +138,78 @@ def update_block_from_line(block: dict, line: str) -> None:
 def parse_mjlab_log_lines(lines: Iterable[str], run_id: str, task: str | None, log_path: str) -> list[dict]:
     records = []
     current = None
+    session_index = -1
+    session_started_at = None
+    last_iteration = None
+
+    def flush_current() -> None:
+        nonlocal current
+        record = finalize_block(current, run_id, task, log_path)
+        if record:
+            records.append(record)
+        current = None
 
     for raw_line in lines:
         line = clean_line(raw_line)
         if not line:
             continue
 
+        start_match = START_RE.search(line)
+        if start_match:
+            flush_current()
+            session_index += 1
+            session_started_at = start_match.group(1)
+            last_iteration = None
+            continue
+
         iteration_match = ITERATION_RE.search(line)
         if iteration_match:
-            record = finalize_block(current, run_id, task, log_path)
-            if record:
-                records.append(record)
+            iteration = int(iteration_match.group(1))
+            max_iterations = int(iteration_match.group(2))
+
+            flush_current()
+
+            if session_index < 0:
+                session_index = 0
+            elif last_iteration is not None and iteration <= last_iteration:
+                session_index += 1
+                session_started_at = None
 
             current = {
-                "mjlab/iteration": int(iteration_match.group(1)),
-                "mjlab/max_iterations": int(iteration_match.group(2)),
+                "mjlab/session_index": session_index,
+                "mjlab/iteration": iteration,
+                "mjlab/max_iterations": max_iterations,
             }
+            if session_started_at is not None:
+                current["mjlab/session_started_at"] = session_started_at
+
+            last_iteration = iteration
             continue
 
         if current is not None:
             update_block_from_line(current, line)
 
-    record = finalize_block(current, run_id, task, log_path)
-    if record:
-        records.append(record)
+    flush_current()
 
     return records
 
 
-def load_existing_ids(output_path: str) -> tuple[set[int], set[int]]:
-    iterations = set()
-    steps = set()
+def int_or_none(value):
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def load_existing_keys(output_path: str) -> tuple[int, set[tuple[int, int, int]], set[tuple[int | None, int, int]]]:
+    row_count = 0
+    session_keys = set()
+    legacy_keys = set()
 
     if not os.path.exists(output_path):
-        return iterations, steps
+        return row_count, session_keys, legacy_keys
 
     with open(output_path, "r", encoding="utf-8") as f:
         for line in f:
@@ -179,40 +218,60 @@ def load_existing_ids(output_path: str) -> tuple[set[int], set[int]]:
             except json.JSONDecodeError:
                 continue
 
-            iteration = row.get("mjlab/iteration")
-            step = row.get("train/step")
+            row_count += 1
+            iteration = int_or_none(row.get("mjlab/iteration"))
+            step = int_or_none(row.get("train/step"))
+            if iteration is None or step is None:
+                continue
 
-            if iteration is not None:
-                try:
-                    iterations.add(int(iteration))
-                except (TypeError, ValueError):
-                    pass
+            session_index = int_or_none(row.get("mjlab/session_index"))
+            max_iterations = int_or_none(row.get("mjlab/max_iterations"))
 
-            if step is not None:
-                try:
-                    steps.add(int(step))
-                except (TypeError, ValueError):
-                    pass
+            if session_index is None:
+                legacy_keys.add((max_iterations, iteration, step))
+            else:
+                session_keys.add((session_index, iteration, step))
 
-    return iterations, steps
+    return row_count, session_keys, legacy_keys
 
 
 def filter_new_records(records: list[dict], output_path: str) -> list[dict]:
-    existing_iterations, existing_steps = load_existing_ids(output_path)
+    existing_count, existing_session_keys, existing_legacy_keys = load_existing_keys(output_path)
+    parsed_sessions = {
+        int_or_none(record.get("mjlab/session_index"))
+        for record in records
+        if int_or_none(record.get("mjlab/session_index")) is not None
+    }
+    latest_session = max(parsed_sessions) if parsed_sessions else None
+    only_latest_session = existing_count > 0 and len(parsed_sessions) > 1
     new_records = []
 
     for record in records:
-        iteration = record.get("mjlab/iteration")
-        step = record.get("train/step")
+        session_index = int_or_none(record.get("mjlab/session_index"))
+        iteration = int_or_none(record.get("mjlab/iteration"))
+        step = int_or_none(record.get("train/step"))
+        max_iterations = int_or_none(record.get("mjlab/max_iterations"))
 
-        if iteration in existing_iterations or step in existing_steps:
+        if iteration is None or step is None:
+            continue
+
+        if only_latest_session and session_index != latest_session:
+            continue
+
+        session_key = (session_index, iteration, step) if session_index is not None else None
+        legacy_key = (max_iterations, iteration, step)
+
+        if session_key is not None and session_key in existing_session_keys:
+            continue
+
+        if legacy_key in existing_legacy_keys and (session_index is None or not only_latest_session):
             continue
 
         new_records.append(record)
-        if iteration is not None:
-            existing_iterations.add(iteration)
-        if step is not None:
-            existing_steps.add(step)
+        if session_key is not None:
+            existing_session_keys.add(session_key)
+        else:
+            existing_legacy_keys.add(legacy_key)
 
     return new_records
 

@@ -70,6 +70,10 @@ def should_restart_mjlab(row):
     return False
 
 
+def has_l3_emergency(rows):
+    return any(row.get("level") == "L3" for row in rows)
+
+
 def run_restart(command, dry_run):
     if dry_run:
         print("dry_run: true")
@@ -105,6 +109,11 @@ def main():
 
     rows = read_adjustments(adjustments_path)
     new_rows = rows[args.since_line:]
+
+    if has_l3_emergency(new_rows):
+        print("🛑 检测到新的 L3 紧急记录，本轮跳过自动重启。")
+        print("说明：L3 暂停优先级高于 L1/L2 参数调整，请人工检查后再恢复训练。")
+        return
 
     restart_rows = [r for r in new_rows if should_restart_sb3(r)]
     mjlab_restart_rows = [r for r in new_rows if should_restart_mjlab(r)]
