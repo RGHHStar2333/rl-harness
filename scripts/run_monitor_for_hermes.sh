@@ -13,6 +13,10 @@ else
   before_lines=0
 fi
 
+if [ -f scripts/training_queue/hermes_queue.py ]; then
+  python3 scripts/training_queue/hermes_queue.py tick --quiet || true
+fi
+
 if [ -f configs/tasks/mjlab/go1.yaml ]; then
   python3 scripts/mjlab/parse_mjlab_metrics.py --config configs/tasks/mjlab/go1.yaml || true
 fi

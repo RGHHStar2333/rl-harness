@@ -22,6 +22,21 @@ The script folder is organized by responsibility. Top-level files are compatibil
 - `feedback/l3_check.py`: trigger emergency pause on L3 rules.
 - `feedback/auto_restart_if_needed.py`: restart SB3 or MJLab training after L1 or confirmed L2 changes.
 
+## Hermes Training Queue
+
+- `hermes_training_request.py`: Feishu/Hermes-facing text entry point for adding one or more MJLab jobs to the queue.
+- `training_queue/hermes_queue.py`: queue engine with `enqueue`, `status`, `tick`, `cancel`, and `clear-completed`.
+
+Examples:
+
+```bash
+python3 scripts/hermes_training_request.py --text "G1 4096并行 8000次 1小时"
+python3 scripts/training_queue/hermes_queue.py status
+python3 scripts/training_queue/hermes_queue.py tick
+```
+
+The scheduled Hermes monitor calls `training_queue/hermes_queue.py tick` before the normal feedback pass, so queued jobs can start, stop at runtime or iteration limits, and advance to the next job automatically.
+
 ## Maintenance
 
 - `ops/lint_config.py`: mechanical config validation.

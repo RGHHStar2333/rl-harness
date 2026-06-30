@@ -43,6 +43,7 @@ def stage_allowed_files():
 
     force_paths = [
         "runs/adjustments.jsonl",
+        "runs/training_queue",
     ]
 
     for path in force_paths:
