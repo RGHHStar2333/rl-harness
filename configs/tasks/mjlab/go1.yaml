@@ -1,13 +1,12 @@
 mjlab:
-  run_id: mjlab_g1_4096_10000
+  run_id: mjlab_g1_4096_5000
   project_dir: /home/leju/mjlab/src
   task: Mjlab-Velocity-Flat-Unitree-G1
   num_envs: 4096
-  max_iterations: 10000
+  max_iterations: 5000
   wandb_project: rl-harness-mjlab
   wandb_entity: rghhstar-leju
-  wandb_name: mjlab_g1_4096_10000
-  wandb_run_id: ly2ivxll
+  wandb_name: mjlab_g1_4096_5000
 agent:
   learning_rate: 0.00095
 reward_weights:
