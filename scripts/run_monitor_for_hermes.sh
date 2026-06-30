@@ -30,6 +30,9 @@ case "${1:-}" in
     if [ -f configs/tasks/mjlab/feedback.yaml ]; then
       MJLAB_SKIP_PARSE=1 bash scripts/mjlab/run_g1_feedback.sh "$@" || true
     fi
+    if [ -f configs/tasks/mjlab/go1.yaml ]; then
+      bash scripts/run_wandb_mjlab_autodecide.sh || true
+    fi
     ;;
 esac
 

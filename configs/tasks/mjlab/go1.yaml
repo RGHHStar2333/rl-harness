@@ -33,3 +33,5 @@ autotune:
   auto_resume: true
   resume_from: latest
   checkpoint_subdir: logs/rsl_rl/g1_velocity
+  wandb_autodecide_enabled: true
+  wandb_autodecide_apply: false

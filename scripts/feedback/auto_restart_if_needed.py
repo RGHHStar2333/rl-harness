@@ -8,8 +8,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def read_adjustments():
-    path = os.path.join(ROOT, "runs", "adjustments.jsonl")
+def read_adjustments(path):
     if not os.path.exists(path):
         return []
 
@@ -23,8 +22,21 @@ def read_adjustments():
     return rows
 
 
-def should_restart(row):
-    if row.get("trainer_kind") == "mjlab":
+def is_mjlab_row(row):
+    run_id = str(row.get("run_id", ""))
+    return (
+        row.get("trainer_kind") == "mjlab"
+        or row.get("system") == "mjlab"
+        or run_id.startswith("mjlab")
+    )
+
+
+def row_requires_restart(row):
+    return bool(row.get("restart_required") or row.get("requires_restart"))
+
+
+def should_restart_sb3(row):
+    if is_mjlab_row(row):
         return False
 
     level = row.get("level")
@@ -38,32 +50,80 @@ def should_restart(row):
     return False
 
 
+def should_restart_mjlab(row):
+    if not is_mjlab_row(row) or not row_requires_restart(row):
+        return False
+
+    if row.get("trainer_kind") == "mjlab":
+        decision = row.get("decision")
+        if decision and decision != "confirmed":
+            return False
+
+    level = row.get("level")
+
+    if level == "L1":
+        return True
+
+    if level == "L2" and row.get("decision", "confirmed") == "confirmed":
+        return True
+
+    return False
+
+
+def run_restart(command, dry_run):
+    if dry_run:
+        print("dry_run: true")
+        print("would_run:", " ".join(command))
+        return 0
+
+    result = subprocess.run(
+        command,
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    print(result.stdout)
+    print(result.stderr)
+    return result.returncode
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--since-line", type=int, required=True)
+    parser.add_argument("--adjustments-path", default="runs/adjustments.jsonl")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--sb3-restart-cmd", default="bash scripts/training/restart_from_checkpoint.sh")
+    parser.add_argument("--mjlab-restart-cmd", default="bash scripts/restart_mjlab_from_checkpoint.sh")
     args = parser.parse_args()
 
-    rows = read_adjustments()
+    adjustments_path = (
+        args.adjustments_path
+        if os.path.isabs(args.adjustments_path)
+        else os.path.join(ROOT, args.adjustments_path)
+    )
+
+    rows = read_adjustments(adjustments_path)
     new_rows = rows[args.since_line:]
 
-    restart_rows = [r for r in new_rows if should_restart(r)]
-    mjlab_restart_rows = [
-        r
-        for r in new_rows
-        if r.get("trainer_kind") == "mjlab" and r.get("restart_required")
-    ]
+    restart_rows = [r for r in new_rows if should_restart_sb3(r)]
+    mjlab_restart_rows = [r for r in new_rows if should_restart_mjlab(r)]
+
+    if mjlab_restart_rows:
+        last = mjlab_restart_rows[-1]
+
+        print("🔁 检测到新的 MJLab 参数调整，需要从 MJLab checkpoint 自动重启。")
+        print(f"level: {last.get('level')}")
+        print(f"target: {last.get('target') or last.get('changes')}")
+        print(f"old_value: {last.get('old_value')}")
+        print(f"new_value: {last.get('new_value')}")
+
+        code = run_restart(args.mjlab_restart_cmd.split(), args.dry_run)
+        if code != 0:
+            raise SystemExit(code)
+        return
 
     if not restart_rows:
-        if mjlab_restart_rows:
-            last = mjlab_restart_rows[-1]
-            print("ℹ️ 检测到 MJLab 参数调整：不会自动调用 HalfCheetah checkpoint 重启。")
-            print(f"profile: {last.get('profile_name')}")
-            print(f"target: {last.get('target')}")
-            print(f"old_value: {last.get('old_value')}")
-            print(f"new_value: {last.get('new_value')}")
-            print("说明：MJLab 调整会在重启训练或下次启动时生效。")
-            return
-
         print("✅ 没有新的 L1/L2 confirmed 调整，不需要重启。")
         return
 
@@ -75,18 +135,9 @@ def main():
     print(f"old_value: {last.get('old_value')}")
     print(f"new_value: {last.get('new_value')}")
 
-    result = subprocess.run(
-        ["bash", "scripts/training/restart_from_checkpoint.sh"],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-    )
-
-    print(result.stdout)
-    print(result.stderr)
-
-    if result.returncode != 0:
-        raise SystemExit(result.returncode)
+    code = run_restart(args.sb3_restart_cmd.split(), args.dry_run)
+    if code != 0:
+        raise SystemExit(code)
 
 
 if __name__ == "__main__":

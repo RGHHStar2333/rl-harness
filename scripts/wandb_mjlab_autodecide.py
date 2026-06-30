@@ -85,7 +85,7 @@ def set_section_value(text, section, key, value):
 
 def append_jsonl(path, obj):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a") as f:
+    with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(obj, ensure_ascii=False) + "\n")
 
 
@@ -190,6 +190,15 @@ def collect_history(run):
     return rows
 
 
+def load_history_jsonl(path):
+    rows = []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        rows.append(json.loads(line))
+    return rows
+
+
 def mean_last(rows, key, n=20):
     vals = [r[key] for r in rows if key in r and isinstance(r[key], (int, float))]
     if not vals:
@@ -250,17 +259,44 @@ def write_train_jsonl(run_dir, rows, decision):
     print(f"✅ W&B history 已写入 train.jsonl，新增 {new_count} 行")
 
 
+def log_adjustments(adjustments_path, run_id, severity, step, actions, old_text, reasons):
+    reason = "; ".join(reasons) if reasons else "W&B automatic decision"
+
+    for sec, key, value in actions:
+        old_raw = section_get(old_text, sec, key, None)
+        old_value = parse_float(old_raw, old_raw)
+        target = f"{sec}.{key}"
+        append_jsonl(adjustments_path, {
+            "timestamp": datetime.now(timezone.utc).timestamp(),
+            "run_id": run_id,
+            "profile_name": "mjlab_wandb_autodecide",
+            "trainer_kind": "mjlab",
+            "source": "wandb",
+            "level": severity,
+            "decision": "auto_applied",
+            "target": target,
+            "old_value": old_value,
+            "new_value": value,
+            "reason": reason,
+            "latest_step": step,
+            "restart_required": True,
+        })
+
+
 def main():
+    global CFG_PATH
+
     parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default=str(CFG_PATH))
+    parser.add_argument("--runs-dir", default=str(ROOT / "runs"))
+    parser.add_argument("--adjustments-path", default=str(ROOT / "runs" / "adjustments.jsonl"))
+    parser.add_argument("--history-jsonl", default=None, help="离线测试用：从本地 JSONL 读取 W&B history 行")
+    parser.add_argument("--restart-cmd", default="bash scripts/restart_mjlab_from_checkpoint.sh")
     parser.add_argument("--apply", action="store_true", help="真的修改配置并自动重启")
     parser.add_argument("--no-restart", action="store_true", help="只修改配置，不重启")
     args = parser.parse_args()
 
-    try:
-        import wandb  # noqa: F401
-    except Exception:
-        print("❌ 当前 python3 没有 wandb。请先执行：python3 -m pip install --user wandb")
-        sys.exit(1)
+    CFG_PATH = Path(args.config)
 
     text = read_cfg_text()
 
@@ -280,18 +316,32 @@ def main():
     l3_crash_threshold = parse_float(section_get(text, "autotune", "l3_reward_crash_threshold", "-30.0"), -30.0)
     cooldown = int(parse_float(section_get(text, "autotune", "l1_cooldown_iterations", "500"), 500))
 
-    run_dir = ROOT / "runs" / run_id
+    run_dir = Path(args.runs_dir) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    print("🔎 正在读取 W&B 曲线")
-    print(f"entity: {entity}")
-    print(f"project: {project}")
-    print(f"run_name: {run_name}")
+    if args.history_jsonl:
+        print("🔎 正在读取本地 W&B history fixture")
+        print(f"history_jsonl: {args.history_jsonl}")
+        run = None
+        wandb_path = f"offline/{run_id}"
+        rows = load_history_jsonl(args.history_jsonl)
+    else:
+        try:
+            import wandb  # noqa: F401
+        except Exception:
+            print("❌ 当前 python3 没有 wandb。请先执行：python3 -m pip install --user wandb")
+            sys.exit(1)
 
-    run = find_latest_wandb_run(entity, project, run_name)
-    print(f"✅ 找到 W&B run: {run.path}")
+        print("🔎 正在读取 W&B 曲线")
+        print(f"entity: {entity}")
+        print(f"project: {project}")
+        print(f"run_name: {run_name}")
 
-    rows = collect_history(run)
+        run = find_latest_wandb_run(entity, project, run_name)
+        wandb_path = "/".join(run.path)
+        print(f"✅ 找到 W&B run: {run.path}")
+        rows = collect_history(run)
+
     if not rows:
         print("❌ 没有从 W&B 读到可分析的曲线数据")
         sys.exit(1)
@@ -383,7 +433,7 @@ def main():
         "time": datetime.now(timezone.utc).isoformat(),
         "source": "wandb",
         "run_id": run_id,
-        "wandb_path": "/".join(run.path),
+        "wandb_path": wandb_path,
         "step": step,
         "severity": severity,
         "metrics": metrics,
@@ -405,6 +455,19 @@ def main():
         print("🛑 L3：自动暂停训练")
         subprocess.run(["python3", "scripts/pause_training.py"], cwd=ROOT)
         decision["changed"] = True
+        append_jsonl(Path(args.adjustments_path), {
+            "timestamp": datetime.now(timezone.utc).timestamp(),
+            "run_id": run_id,
+            "profile_name": "mjlab_wandb_autodecide",
+            "trainer_kind": "mjlab",
+            "source": "wandb",
+            "level": "L3",
+            "decision": "auto_applied",
+            "target": "pause_training",
+            "reason": "; ".join(reasons),
+            "latest_step": step,
+            "restart_required": False,
+        })
         append_jsonl(history_path, decision)
         sys.exit(0)
 
@@ -418,16 +481,17 @@ def main():
             print(f"✏️ 修改配置: {sec}.{key} = {value_s}")
             new_text = set_section_value(new_text, sec, key, value_s)
 
-        CFG_PATH.write_text(new_text)
+        CFG_PATH.write_text(new_text, encoding="utf-8")
         decision["changed"] = True
         changed = True
+        log_adjustments(Path(args.adjustments_path), run_id, severity, step, actions, text, reasons)
 
         (run_dir / "wandb_decision.json").write_text(json.dumps(decision, ensure_ascii=False, indent=2) + "\n")
         append_jsonl(history_path, decision)
 
         if not args.no_restart:
             print("🔁 配置已修改，开始从 checkpoint 自动重启 MJLab")
-            subprocess.run(["bash", "scripts/restart_mjlab_from_checkpoint.sh"], cwd=ROOT)
+            subprocess.run(args.restart_cmd.split(), cwd=ROOT)
     else:
         append_jsonl(history_path, decision)
         if severity == "hold":

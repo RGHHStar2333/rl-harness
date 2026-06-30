@@ -21,8 +21,14 @@ echo "log: $LOG"
 nohup bash -lc '
 while true; do
   date
+  if [ -f runs/adjustments.jsonl ]; then
+    before_lines=$(wc -l < runs/adjustments.jsonl)
+  else
+    before_lines=0
+  fi
   python3 scripts/mjlab_parse_log.py
   python3 scripts/mjlab_auto_tune.py
+  python3 scripts/feedback/auto_restart_if_needed.py --since-line "$before_lines" || true
   echo "----"
   sleep 60
 done

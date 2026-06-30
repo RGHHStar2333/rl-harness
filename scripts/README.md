@@ -20,7 +20,7 @@ The script folder is organized by responsibility. Top-level files are compatibil
 - `feedback/l2_confirm.sh`: confirm an L2 token and restart if needed.
 - `feedback/l2_reject.sh`: reject an L2 token.
 - `feedback/l3_check.py`: trigger emergency pause on L3 rules.
-- `feedback/auto_restart_if_needed.py`: restart training after L1 or confirmed L2 changes.
+- `feedback/auto_restart_if_needed.py`: restart SB3 or MJLab training after L1 or confirmed L2 changes.
 
 ## Maintenance
 
@@ -36,6 +36,8 @@ The script folder is organized by responsibility. Top-level files are compatibil
 - `mjlab/parse_mjlab_metrics.py`: parse MJLab `training_process.log` into Harness-compatible `train.jsonl`.
 - `mjlab/run_g1_feedback.sh`: refresh MJLab G1 metrics and run the MJLab G1 L1/L2/L3 feedback pass.
 - `run_mjlab_g1_feedback.sh`: compatibility wrapper for the MJLab G1 feedback pass.
+- `run_wandb_mjlab_autodecide.sh`: run the configured W&B curve analysis and write MJLab decision output.
+- `wandb_mjlab_autodecide.py`: read W&B curves, decide MJLab adjustments, and optionally apply them.
 
 Sync MJLab metrics for the configured run:
 
@@ -55,7 +57,17 @@ The scheduled Hermes entry point also refreshes MJLab metrics and runs the MJLab
 bash scripts/run_monitor_for_hermes.sh --debug
 ```
 
-MJLab G1 L1/L2 changes update `configs/tasks/mjlab/go1.yaml` at `mjlab.agent.algorithm.learning_rate`. They are recorded with `trainer_kind: mjlab` and `restart_required: true`, so they take effect after restarting MJLab training or on the next launch. They do not call the HalfCheetah checkpoint restart script.
+MJLab G1 L1/L2 changes update `configs/tasks/mjlab/go1.yaml` at `agent.learning_rate` and `reward_weights.*`. They are recorded with `trainer_kind: mjlab` and `restart_required: true`, so they take effect after restarting MJLab training or on the next launch. The MJLab launch/restart commands translate those values into `--agent.algorithm.learning-rate` and `--env.rewards.*.weight` CLI overrides.
+
+When MJLab adjustment rows are appended to `runs/adjustments.jsonl`, `feedback/auto_restart_if_needed.py` calls `scripts/restart_mjlab_from_checkpoint.sh` and resumes from the latest MJLab checkpoint.
+
+Run W&B curve analysis manually:
+
+```bash
+bash scripts/run_wandb_mjlab_autodecide.sh
+```
+
+The scheduled Hermes entry point calls this wrapper after the MJLab feedback pass. With `autotune.wandb_autodecide_apply: false`, it writes `runs/<run_id>/wandb_decision.json` and history without changing config. With `autotune.wandb_autodecide_apply: true`, it applies config changes, appends MJLab adjustment records, and lets the shared auto-restart step resume from checkpoint.
 
 Verify the MJLab launch command without starting training:
 

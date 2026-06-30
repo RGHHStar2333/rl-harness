@@ -46,6 +46,9 @@ def validate_rule_targets(rules_cfg, allowed_prefixes, rules_path):
         if rule.get("auto_adjust"):
             targets.append(rule["auto_adjust"].get("target"))
 
+        for auto_adjust in rule.get("auto_adjustments", []):
+            targets.append(auto_adjust.get("target"))
+
         for suggestion in rule.get("suggestions", []):
             targets.append(suggestion.get("target"))
 
@@ -111,7 +114,7 @@ def validate_mjlab_feedback_profile():
     if not allowed_prefixes:
         fail(
             "MJLab feedback profile 缺少 safety.allowed_target_prefixes",
-            "请至少添加 mjlab.agent.algorithm. 作为安全 target 前缀。",
+            "请至少添加 agent. 或 reward_weights. 作为安全 target 前缀。",
         )
 
     rules_cfg = load_yaml(paths["rules_config"])
@@ -119,18 +122,32 @@ def validate_mjlab_feedback_profile():
 
     mjlab_cfg = load_yaml(paths["adjustable_config"])
     try:
-        learning_rate = nested_get(mjlab_cfg, "mjlab.agent.algorithm.learning_rate")
+        learning_rate = nested_get(mjlab_cfg, "agent.learning_rate")
     except KeyError:
         fail(
-            "MJLab 可调配置缺少 mjlab.agent.algorithm.learning_rate",
-            "请在 configs/tasks/mjlab/go1.yaml 添加 Harness 持有的 learning_rate。",
+            "MJLab 可调配置缺少 agent.learning_rate",
+            "请在 configs/tasks/mjlab/go1.yaml 添加 Harness 持有的 agent.learning_rate。",
         )
 
     if not isinstance(learning_rate, (int, float)) or learning_rate <= 0:
         fail(
             f"MJLab learning_rate 必须是正数，当前是 {learning_rate}",
-            "请把 configs/tasks/mjlab/go1.yaml 里的 mjlab.agent.algorithm.learning_rate 改成正数。",
+            "请把 configs/tasks/mjlab/go1.yaml 里的 agent.learning_rate 改成正数。",
         )
+
+    reward_weights = mjlab_cfg.get("reward_weights", {})
+    if not isinstance(reward_weights, dict) or not reward_weights:
+        fail(
+            "MJLab 可调配置缺少 reward_weights",
+            "请在 configs/tasks/mjlab/go1.yaml 添加 Harness 持有的 reward_weights。",
+        )
+
+    for name, value in reward_weights.items():
+        if not isinstance(value, (int, float)):
+            fail(
+                f"MJLab reward_weights.{name} 必须是数字，当前是 {value}",
+                "请把 configs/tasks/mjlab/go1.yaml 里的 reward 权重改成数字。",
+            )
 
 
 def main():

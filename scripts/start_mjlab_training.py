@@ -1,5 +1,6 @@
 import json
 import os
+import argparse
 import subprocess
 import sys
 from datetime import datetime
@@ -14,6 +15,11 @@ def now():
     return datetime.now().isoformat(timespec="seconds")
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--print-command", action="store_true")
+    args = parser.parse_args()
+
     cfg = yaml.safe_load(CFG.read_text(encoding="utf-8"))
 
     mj = cfg["mjlab"]
@@ -54,6 +60,10 @@ def main():
     print("cmd:", " ".join(cmd))
     print("log:", log_path)
 
+    if args.dry_run or args.print_command:
+        print("dry_run: true")
+        return
+
     log_file = open(log_path, "a", encoding="utf-8")
     log_file.write("\n" + "=" * 80 + "\n")
     log_file.write(f"[{now()}] START\n")
@@ -76,6 +86,8 @@ def main():
         "pid": proc.pid,
         "project_dir": str(project_dir),
         "command": " ".join(cmd),
+        "learning_rate": agent.get("learning_rate"),
+        "reward_weights": reward_weights,
         "log": str(log_path),
         "started_at": now(),
     }

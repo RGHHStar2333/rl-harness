@@ -131,72 +131,89 @@ def run_lint():
     return result.returncode == 0, result.stdout + result.stderr
 
 
+def get_l1_auto_adjustments(rule):
+    if rule.get("auto_adjustments"):
+        return rule["auto_adjustments"]
+
+    if rule.get("auto_adjust"):
+        return [rule["auto_adjust"]]
+
+    return []
+
+
 def apply_l1_auto_adjust(context, rule, reason, latest, dry_run=False):
-    auto_adjust = rule.get("auto_adjust")
+    auto_adjustments = get_l1_auto_adjustments(rule)
 
-    if not auto_adjust:
-        return False, "L1 规则没有 auto_adjust 字段，无法自动修改。"
+    if not auto_adjustments:
+        return False, "L1 规则没有 auto_adjust 或 auto_adjustments 字段，无法自动修改。"
 
-    target = auto_adjust["target"]
-    operation = auto_adjust["operation"]
-    raw_value = auto_adjust["value"]
+    changes = []
 
-    try:
-        change = apply_config_adjustment(
-            context=context,
-            target=target,
-            operation=operation,
-            raw_value=raw_value,
-            max_ratio=context.l1_max_change_ratio,
-            backup_label="l1",
-            dry_run=dry_run,
-        )
-    except Exception as exc:
-        return False, str(exc)
+    for auto_adjust in auto_adjustments:
+        target = auto_adjust["target"]
+        operation = auto_adjust["operation"]
+        raw_value = auto_adjust["value"]
 
-    old_value = change["old_value"]
-    new_value = change["new_value"]
-    backup_path = change["backup_path"]
+        try:
+            change = apply_config_adjustment(
+                context=context,
+                target=target,
+                operation=operation,
+                raw_value=raw_value,
+                max_ratio=context.l1_max_change_ratio,
+                backup_label="l1",
+                dry_run=dry_run,
+            )
+        except Exception as exc:
+            return False, str(exc)
+
+        change["reason_detail"] = auto_adjust.get("reason")
+        changes.append(change)
 
     summary = []
     summary.append("L1 自动修改可调配置")
     summary.append(f"- 规则：{rule['id']}")
     summary.append(f"- Profile：{context.profile_name}")
-    summary.append(f"- 参数：{target}")
-    summary.append(f"- 旧值：{old_value}")
-    summary.append(f"- 新值：{new_value}")
-    summary.append(f"- 操作：{operation} {raw_value}")
     summary.append(f"- L1 最大改动比例：{context.l1_max_change_ratio}")
     summary.append(f"- 触发原因：{reason}")
+    for change in changes:
+        summary.append(
+            f"- {change['target']}: {change['old_value']} -> {change['new_value']} "
+            f"({change['operation']} {change['operation_value']})"
+        )
 
     if dry_run:
         summary.append("- 模式：dry-run，没有真正写入文件")
         return True, "\n".join(summary)
 
-    profile_append_jsonl(context.adjustments_path, {
-        "timestamp": time.time(),
-        "run_id": context.run_id,
-        "profile_name": context.profile_name,
-        "trainer_kind": context.trainer_kind,
-        "level": "L1",
-        "rule_id": rule["id"],
-        "target": target,
-        "old_value": old_value,
-        "new_value": new_value,
-        "operation": operation,
-        "operation_value": raw_value,
-        "reason": reason,
-        "latest_step": latest.get("step") if latest else None,
-        "latest_value": latest.get("value") if latest else None,
-        "config_path": context.adjust_config_path,
-        "hyper_path": context.adjust_config_path,
-        "backup_path": backup_path,
-        "restart_required": context.restart_required,
-    })
+    for change in changes:
+        profile_append_jsonl(context.adjustments_path, {
+            "timestamp": time.time(),
+            "run_id": context.run_id,
+            "profile_name": context.profile_name,
+            "trainer_kind": context.trainer_kind,
+            "level": "L1",
+            "rule_id": rule["id"],
+            "target": change["target"],
+            "old_value": change["old_value"],
+            "new_value": change["new_value"],
+            "operation": change["operation"],
+            "operation_value": change["operation_value"],
+            "reason": reason,
+            "reason_detail": change.get("reason_detail"),
+            "latest_step": latest.get("step") if latest else None,
+            "latest_value": latest.get("value") if latest else None,
+            "config_path": context.adjust_config_path,
+            "hyper_path": context.adjust_config_path,
+            "backup_path": change["backup_path"],
+            "restart_required": context.restart_required,
+        })
 
     summary.append("")
     summary.append("✅ 修改成功，lint 校验通过。")
-    summary.append(f"备份文件：{backup_path}")
+    summary.append("备份文件：")
+    for change in changes:
+        summary.append(f"- {change['backup_path']}")
     summary.append(f"调整日志：{resolve_path(context.adjustments_path)}")
     if context.restart_required:
         summary.append("说明：该修改需要重启训练或下次启动后生效。")

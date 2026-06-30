@@ -20,6 +20,30 @@ WANDB_PROJECT_NAME="$(get_yaml_value wandb_project)"
 WANDB_RUN_NAME="$(get_yaml_value wandb_name)"
 AUTO_RESUME="$(get_yaml_value auto_resume || echo true)"
 CHECKPOINT_SUBDIR="$(get_yaml_value checkpoint_subdir || echo logs/rsl_rl/g1_velocity)"
+LEARNING_RATE="$(
+  python3 - <<'PY'
+import yaml
+cfg = yaml.safe_load(open("configs/tasks/mjlab/go1.yaml", "r", encoding="utf-8"))
+print(cfg.get("agent", {}).get("learning_rate", ""))
+PY
+)"
+
+EXTRA_ARGS=()
+if [ -n "$LEARNING_RATE" ]; then
+  EXTRA_ARGS+=(--agent.algorithm.learning-rate "$LEARNING_RATE")
+fi
+
+while IFS= read -r arg; do
+  EXTRA_ARGS+=("$arg")
+done < <(
+  python3 - <<'PY'
+import yaml
+cfg = yaml.safe_load(open("configs/tasks/mjlab/go1.yaml", "r", encoding="utf-8"))
+for name, value in cfg.get("reward_weights", {}).items():
+    print(f"--env.rewards.{name.replace('_', '-')}.weight")
+    print(value)
+PY
+)
 
 RUN_DIR="$ROOT/runs/$RUN_ID"
 mkdir -p "$RUN_DIR"
@@ -89,6 +113,7 @@ echo "🚀 从 checkpoint 自动重启 MJLab 训练"
 echo "task: $TASK"
 echo "num_envs: $NUM_ENVS"
 echo "max_iterations: $MAX_ITERATIONS"
+echo "learning_rate: ${LEARNING_RATE:-none}"
 echo "wandb_project: $WANDB_PROJECT_NAME"
 echo "wandb_name: $WANDB_RUN_NAME"
 echo "log: $LOG_PATH"
@@ -101,6 +126,7 @@ nohup uv run train "$TASK" \
   --agent.logger wandb \
   --agent.wandb-project "$WANDB_PROJECT_NAME" \
   --agent.run-name "$WANDB_RUN_NAME" \
+  "${EXTRA_ARGS[@]}" \
   "${RESUME_ARGS[@]}" \
   > "$LOG_PATH" 2>&1 &
 
@@ -118,7 +144,8 @@ cat > runs/active_training.json <<JSON
   "checkpoint": "${LATEST_CKPT:-none}",
   "load_run": "${LOAD_RUN:-}",
   "load_checkpoint": "${LOAD_CHECKPOINT:-}",
-  "command": "uv run train $TASK --env.scene.num-envs $NUM_ENVS --agent.max-iterations $MAX_ITERATIONS --agent.logger wandb --agent.wandb-project $WANDB_PROJECT_NAME --agent.run-name $WANDB_RUN_NAME ${RESUME_ARGS[*]}",
+  "command": "uv run train $TASK --env.scene.num-envs $NUM_ENVS --agent.max-iterations $MAX_ITERATIONS --agent.logger wandb --agent.wandb-project $WANDB_PROJECT_NAME --agent.run-name $WANDB_RUN_NAME ${EXTRA_ARGS[*]} ${RESUME_ARGS[*]}",
+  "learning_rate": "${LEARNING_RATE:-}",
   "log": "$LOG_PATH"
 }
 JSON
