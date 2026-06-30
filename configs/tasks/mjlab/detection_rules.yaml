@@ -8,11 +8,15 @@ rules:
       min_delta: 1.0
     response_level: L1
     cooldown_steps: 50000000
-    auto_adjust:
-      target: mjlab.agent.algorithm.learning_rate
-      operation: multiply
-      value: 0.95
-      reason: Small automatic learning-rate reduction for MJLab G1.
+    auto_adjustments:
+      - target: agent.learning_rate
+        operation: multiply
+        value: 0.95
+        reason: Small automatic learning-rate reduction for MJLab G1.
+      - target: reward_weights.track_linear_velocity
+        operation: multiply
+        value: 1.05
+        reason: Slightly strengthen linear velocity tracking while reward is plateaued.
 
   - id: mjlab_g1_reward_plateau_l2
     description: MJLab G1 reward has not improved enough for a longer period.
@@ -23,10 +27,18 @@ rules:
       min_delta: 2.0
     response_level: L2
     suggestions:
-      - target: mjlab.agent.algorithm.learning_rate
+      - target: agent.learning_rate
         operation: multiply
         value: 0.8
         reason: Lower learning rate if MJLab G1 reward is stuck.
+      - target: reward_weights.track_linear_velocity
+        operation: multiply
+        value: 1.2
+        reason: Increase forward velocity tracking reward when learning is stuck.
+      - target: reward_weights.action_rate_l2
+        operation: multiply
+        value: 0.85
+        reason: Reduce action-rate penalty magnitude to let the policy explore smoother gait corrections.
 
   - id: mjlab_g1_reward_crash_l3
     description: MJLab G1 reward dropped to a dangerous value.

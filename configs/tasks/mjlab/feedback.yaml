@@ -16,7 +16,8 @@ feedback_profile:
     state_path_prefix: runs/_mjlab_g1_feedback
   safety:
     allowed_target_prefixes:
-      - mjlab.agent.algorithm.
+      - agent.
+      - reward_weights.
     l1_max_change_ratio: 0.1
     l2_max_change_ratio: 0.3
   restart:
