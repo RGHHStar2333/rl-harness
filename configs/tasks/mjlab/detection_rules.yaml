@@ -49,3 +49,13 @@ rules:
       value: 5
     response_level: L3
     emergency_action: pause_training
+
+  - id: mjlab_g1_value_loss_explosion_l3
+    description: MJLab G1 value loss exploded to an unsafe level.
+    metric: train/value_loss
+    condition:
+      type: threshold
+      operator: ">"
+      value: 1000
+    response_level: L3
+    emergency_action: pause_training
