@@ -32,6 +32,12 @@ Run one feedback pass for Hermes / Feishu:
 bash scripts/run_monitor_for_hermes.sh
 ```
 
+Start the Hermes/Feishu training request webhook:
+
+```bash
+bash scripts/start_hermes_feishu_webhook.sh
+```
+
 Run entropy scan:
 
 ```bash

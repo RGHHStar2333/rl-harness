@@ -6,10 +6,12 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
 QUEUE_PATH = ROOT / "scripts" / "training_queue" / "hermes_queue.py"
+DELIVERY_LOG_PATH = ROOT / "runs" / "hermes_feishu_inbox.jsonl"
 
 
 def load_queue_module():
@@ -105,6 +107,21 @@ def summarize_jobs(jobs):
     ]
 
 
+def append_delivery_log(payload, response, status):
+    DELIVERY_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    row = {
+        "timestamp": time.time(),
+        "status_code": status,
+        "ok": response.get("ok"),
+        "accepted": response.get("accepted", 0),
+        "error": response.get("error"),
+        "text": response.get("text"),
+        "payload_keys": sorted(payload.keys()) if isinstance(payload, dict) else [],
+    }
+    with DELIVERY_LOG_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
 def handle_payload(payload, queue=None, source="feishu_webhook", dry_run=False, auto_tick=False, expected_token=None):
     if not verify_payload_token(payload, expected_token):
         return {"ok": False, "error": "invalid_token"}, 403
@@ -168,7 +185,9 @@ class FeishuWebhookHandler(BaseHTTPRequestHandler):
         try:
             payload = json.loads(raw.decode("utf-8"))
         except json.JSONDecodeError:
-            self.write_json(400, {"ok": False, "error": "invalid_json"})
+            response = {"ok": False, "error": "invalid_json"}
+            append_delivery_log({}, response, 400)
+            self.write_json(400, response)
             return
 
         response, status = handle_payload(
@@ -178,6 +197,7 @@ class FeishuWebhookHandler(BaseHTTPRequestHandler):
             auto_tick=self.auto_tick,
             expected_token=self.expected_token,
         )
+        append_delivery_log(payload, response, status)
         self.write_json(status, response)
 
 

@@ -17,11 +17,18 @@ if [ -z "$PID" ]; then
   exit 0
 fi
 
-if kill -0 "$PID" 2>/dev/null; then
+is_webhook_pid() {
+  local pid="$1"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  ps -p "$pid" -o args= 2>/dev/null | grep -F "scripts/hermes_feishu_webhook.py" >/dev/null
+}
+
+if is_webhook_pid "$PID"; then
   kill "$PID"
   echo "Hermes Feishu webhook stopped: PID=$PID"
 else
-  echo "Hermes Feishu webhook was not running: PID=$PID"
+  echo "Hermes Feishu webhook was not running, or PID was reused by another process: PID=$PID"
 fi
 
 python3 - "$STATE" <<'PY'

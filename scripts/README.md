@@ -24,22 +24,32 @@ The script folder is organized by responsibility. Top-level files are compatibil
 
 ## Hermes Training Queue
 
+- `hermes_product_assistant.py`: product-assistant CLI that explains training plans, asks for confirmation, executes through the queue, and translates status into plain Chinese.
 - `hermes_training_request.py`: Feishu/Hermes-facing text entry point for adding one or more MJLab jobs to the queue.
 - `hermes_feishu_webhook.py`: dependency-free HTTP webhook that accepts Feishu-style JSON message events and enqueues MJLab jobs.
 - `start_hermes_feishu_webhook.sh` / `stop_hermes_feishu_webhook.sh`: managed background launcher for the webhook.
+- `ensure_hermes_feishu_webhook.sh`: idempotent autostart helper used by the scheduled Hermes monitor.
+- `diagnose_hermes_training_request.py`: checks webhook, inbox, queue, events, and active training state.
 - `validate_hermes_feishu_e2e.py`: simulated Feishu-to-queue-to-auto-advance validation without starting real training.
 - `training_queue/hermes_queue.py`: queue engine with `enqueue`, `status`, `tick`, `cancel`, and `clear-completed`.
 
 Examples:
 
 ```bash
+python3 scripts/hermes_product_assistant.py ask --text "帮我跑 G1 4096并行 8000次 1小时"
+python3 scripts/hermes_product_assistant.py confirm <token> --start
+python3 scripts/hermes_product_assistant.py status
+python3 scripts/hermes_product_assistant.py diagnose --text "G1 4096并行 8000次 1小时"
 python3 scripts/hermes_training_request.py --text "G1 4096并行 8000次 1小时"
 bash scripts/start_hermes_feishu_webhook.sh
+python3 scripts/diagnose_hermes_training_request.py --text "G1 4096并行 8000次 1小时"
 python3 scripts/training_queue/hermes_queue.py status
 python3 scripts/training_queue/hermes_queue.py tick
 ```
 
-The webhook supports `GET /health`, `GET /status`, and `POST` requests with direct text payloads or Feishu-style `event.message.content` JSON. Set `FEISHU_VERIFY_TOKEN` before launch if the Feishu app uses URL verification tokens.
+For Feishu/Hermes conversations, prefer `hermes_product_assistant.py` first. It gives the user a readable plan and confirmation command instead of immediately enqueueing expensive training.
+
+The webhook supports `GET /health`, `GET /status`, and `POST` requests with direct text payloads or Feishu-style `event.message.content` JSON. Set `FEISHU_VERIFY_TOKEN` before launch if the Feishu app uses URL verification tokens. Incoming POST delivery summaries are recorded in `runs/hermes_feishu_inbox.jsonl`.
 
 The scheduled Hermes monitor calls `training_queue/hermes_queue.py tick` before the normal feedback pass, so queued jobs can start, stop at runtime or iteration limits, and advance to the next job automatically.
 

@@ -7,6 +7,10 @@ if [ -f ".venv/bin/activate" ]; then
   source .venv/bin/activate
 fi
 
+if [ -f scripts/ensure_hermes_feishu_webhook.sh ]; then
+  bash scripts/ensure_hermes_feishu_webhook.sh || true
+fi
+
 if [ -f runs/adjustments.jsonl ]; then
   before_lines=$(wc -l < runs/adjustments.jsonl)
 else

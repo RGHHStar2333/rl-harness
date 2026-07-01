@@ -11,8 +11,15 @@ wandb/
 runs/training_process.log
 runs/active_training.json
 runs/_*.json
+runs/experiment_schedule.json
+runs/hermes_assistant/
+runs/hermes_feishu_inbox.jsonl
+runs/hermes_feishu_webhook.json
+runs/hermes_feishu_webhook.log
 runs/l2_pending/
 runs/entropy_cron.log
+runs/training_queue/events.jsonl
+runs/mjlab_g1_*/
 runs/cartpole_mvp_001/
 runs/halfcheetah_mvp_001/
 runs/bridge.nohup.log
